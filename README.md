@@ -1,0 +1,1 @@
+# aiorigin-widget-assets
