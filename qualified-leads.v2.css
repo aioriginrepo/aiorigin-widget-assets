@@ -1,0 +1,92 @@
+/* qualified-leads.v2.css — AIOrigin BDR leads table widget (v2).
+   SOURCE OF TRUTH = LEADS_WIDGET_STYLE in src/lib/mcp/widgets/qualified-leads-mcpui.ts.
+   v2 : vrai <select> de campagne pré-rempli, barre « Ajouter à la campagne » en bas,
+   bouton Recharger, bloc « Sourcer plus de leads » en premier plan.
+   Theme-aware (host --color-* vars + light fallbacks). No external font dependency. */
+
+.ao-leads{color:var(--color-text-primary,#1a1a1a);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Inter,sans-serif;font-size:13px;line-height:1.4;max-width:760px}
+.ao-leads *{box-sizing:border-box}
+
+/* top bar */
+.ao-leads .bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.ao-leads .bar-l{font-size:13px;color:var(--color-text-secondary,#6b7280)}
+.ao-leads .bar-l b{color:var(--color-text-primary,#1a1a1a);font-weight:500}
+.ao-leads .bar-l .pend{color:var(--color-text-warning,#92400e)}
+.ao-leads .bar-r{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ao-leads .reload{display:inline-flex;align-items:center;gap:6px;background:transparent;color:var(--color-text-primary,#1a1a1a);border:.5px solid var(--color-border-secondary,#d8d6cf);border-radius:8px;padding:7px 11px;font-size:12px;font-weight:500;cursor:pointer}
+.ao-leads .campwrap{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--color-text-secondary,#6b7280)}
+.ao-leads select.camp{height:34px;border:.5px solid var(--color-border-secondary,#d8d6cf);border-radius:8px;background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a1a);font:inherit;font-size:12px;padding:0 8px;cursor:pointer;max-width:210px}
+.ao-leads .btn-sent{background:var(--color-background-success,#dcfce7)!important;color:var(--color-text-success,#166534)!important;border-color:var(--color-border-success,#9fe1cb)!important}
+
+/* table */
+.ao-leads table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px}
+.ao-leads col.c-sel{width:30px}.ao-leads col.c-num{width:18px}.ao-leads col.c-lead{width:160px}.ao-leads col.c-why{width:auto}.ao-leads col.c-mail{width:118px}.ao-leads col.c-score{width:56px}.ao-leads col.c-act{width:22px}
+.ao-leads thead th{text-align:left;padding:0 8px 9px;border-bottom:.5px solid var(--color-border-tertiary,#e6e4df);color:var(--color-text-secondary,#6b7280);font-size:11px;font-weight:500;white-space:nowrap}
+.ao-leads thead th:first-child{padding-left:0}
+.ao-leads tbody td{padding:11px 8px;border-bottom:.5px solid var(--color-border-tertiary,#e6e4df);vertical-align:top}
+.ao-leads tbody td:first-child{padding-left:0}
+.ao-leads tbody tr:last-child td{border-bottom:0}
+.ao-leads tr.unq{background:var(--color-background-secondary,#f5f4f0)}
+.ao-leads tr.excluded{opacity:.45;text-decoration:line-through}
+.ao-leads input[type=checkbox]{width:15px;height:15px;margin-top:2px;accent-color:var(--color-text-info,#185fa5);cursor:pointer}
+
+.ao-leads .num{color:var(--color-text-tertiary,#9b9890);font-variant-numeric:tabular-nums;font-size:12px}
+.ao-leads .nm{font-weight:500}
+.ao-leads .sen{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:999px;font-size:10px;background:var(--color-background-secondary,#eceae5);color:var(--color-text-secondary,#6b7280);vertical-align:1px}
+.ao-leads .sub{margin-top:2px;color:var(--color-text-secondary,#6b7280);font-size:12px}
+.ao-leads .li{color:var(--color-text-link,#2563eb);text-decoration:none}
+
+.ao-leads .chip{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:500;white-space:nowrap}
+.ao-leads .chip.hot{background:var(--color-background-success,#dcfce7);color:var(--color-text-success,#166534)}
+.ao-leads .chip.warm{background:var(--color-background-warning,#fef3c7);color:var(--color-text-warning,#92400e)}
+.ao-leads .chip.cold{background:var(--color-background-secondary,#eceae5);color:var(--color-text-secondary,#57534e)}
+.ao-leads .why{margin-top:6px;color:var(--color-text-secondary,#6b7280);font-size:12px;line-height:1.45}
+.ao-leads .ev{color:var(--color-text-link,#2563eb);text-decoration:none;white-space:nowrap}
+
+.ao-leads .mail{font-size:12px;overflow-wrap:anywhere}
+.ao-leads .mail a{color:var(--color-text-link,#2563eb);text-decoration:none}
+.ao-leads .trust{display:inline-flex;align-items:center;gap:4px;font-size:11px;margin-top:3px}
+.ao-leads .t-ok{color:var(--color-text-success,#166534)}
+.ao-leads .t-warn{color:var(--color-text-warning,#92400e)}
+.ao-leads .t-bad{color:var(--color-text-danger,#991b1b)}
+.ao-leads .relink{color:var(--color-text-link,#2563eb);text-decoration:none;cursor:pointer}
+
+.ao-leads .scorewrap{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.ao-leads .scoreval{font-weight:500;font-variant-numeric:tabular-nums}
+.ao-leads .scoreval.ok{color:var(--color-text-success,#166534)}
+.ao-leads .scoreval.warn{color:var(--color-text-warning,#92400e)}
+.ao-leads .scoreval.bad{color:var(--color-text-danger,#991b1b)}
+.ao-leads .twoscore{font-size:10px;color:var(--color-text-tertiary,#9b9890)}
+.ao-leads .track{width:44px;height:4px;border-radius:999px;background:var(--color-background-secondary,#eceae5);overflow:hidden}
+.ao-leads .fill{height:100%}
+.ao-leads .x{color:var(--color-text-tertiary,#9b9890);cursor:pointer;font-size:15px;line-height:1;user-select:none}
+.ao-leads .x:hover{color:var(--color-text-danger,#991b1b)}
+
+/* master checkbox (header) */
+.ao-leads .masterbox{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border:1.5px solid var(--color-text-info,#185fa5);border-radius:4px;background:transparent;color:var(--color-background-primary,#fff);cursor:pointer;margin-top:1px;font-size:11px;line-height:1}
+.ao-leads .masterbox.all,.ao-leads .masterbox.some{background:var(--color-text-info,#185fa5)}
+.ao-leads .masterbox .mk{display:none}
+.ao-leads .masterbox.all .mk-all{display:inline}
+.ao-leads .masterbox.some .mk-some{display:inline}
+
+/* enroll bar (bottom, always visible) */
+.ao-leads .enroll{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding:12px 14px;background:var(--color-background-secondary,#f5f4f0);border:.5px solid var(--color-border-tertiary,#e6e4df);border-radius:10px;flex-wrap:wrap}
+.ao-leads .enroll-l{font-size:13px;color:var(--color-text-secondary,#6b7280)}
+.ao-leads .enroll-l b{color:var(--color-text-primary,#1a1a1a);font-weight:500}
+.ao-leads .enroll-r{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ao-leads .primary{display:inline-flex;align-items:center;gap:6px;background:var(--color-text-info,#185fa5);color:var(--color-background-primary,#fff);border:none;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:500;cursor:pointer}
+.ao-leads .primary[disabled]{opacity:.5;cursor:not-allowed}
+.ao-leads .ghost{display:inline-flex;align-items:center;gap:6px;background:transparent;color:var(--color-text-secondary,#6b7280);border:.5px solid var(--color-border-secondary,#d8d6cf);border-radius:8px;padding:8px 12px;font-size:12px;cursor:pointer}
+
+/* "more leads" block (first-class) */
+.ao-leads .more{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;padding:12px 14px;border:.5px dashed var(--color-border-secondary,#d8d6cf);border-radius:10px;flex-wrap:wrap}
+.ao-leads .more-l{font-size:13px;color:var(--color-text-primary,#1a1a1a);font-weight:500}
+.ao-leads .more-l span{display:block;font-size:12px;color:var(--color-text-secondary,#6b7280);font-weight:400;margin-top:2px}
+.ao-leads .more-r{display:flex;align-items:center;gap:8px}
+.ao-leads .more-r .qty{width:56px;height:34px;text-align:center;border:.5px solid var(--color-border-secondary,#d8d6cf);border-radius:8px;background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a1a);font:inherit;font-size:13px}
+.ao-leads .more-r .srcbtn{display:inline-flex;align-items:center;gap:6px;background:transparent;color:var(--color-text-info,#185fa5);border:.5px solid var(--color-border-info,#85b7eb);border-radius:8px;padding:9px 14px;font-size:13px;font-weight:500;cursor:pointer}
+
+/* no-JS: hide interactive-only affordances until the script enhances */
+.ao-leads:not(.js) .reload,.ao-leads:not(.js) .x,.ao-leads:not(.js) .enroll-r,.ao-leads:not(.js) .more-r{display:none}
+
+@media (max-width:560px){.ao-leads col.c-mail{width:96px}.ao-leads .twoscore{display:none}}
