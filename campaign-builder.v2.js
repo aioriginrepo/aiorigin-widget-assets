@@ -75,10 +75,12 @@
         '<label class="lbl">Géographie <span class="mini">(tape n\'importe quel pays / ville / région)</span></label><div class="row">' + tags("geo") + '</div>' +
         '<div class="addrow"><input data-add="geo" placeholder="ex. London, Île-de-France, Benelux…"><button class="btn" data-addbtn="geo">Ajouter</button></div>' +
         '<div class="row" style="margin-top:8px">' + geoSugg.map(function (g) { return '<button class="chip add" data-sugg="geo" data-val="' + esc(g) + '">+ ' + esc(g) + "</button>"; }).join("") + '</div>' +
-        '<label class="lbl">Persona(s) <span class="mini">(ou ajoute le tien)</span></label><div class="row">' + multi("personas", personasAll.map(function (p) { return [p, p]; })) + customChips("personas", personasAll) + '</div>' +
+        '<label class="lbl">Persona(s) <span class="mini">(tape ou choisis ; clique × pour retirer)</span></label><div class="row">' + tags("personas") + '</div>' +
         '<div class="addrow"><input data-add="personas" placeholder="ex. Head of Demand Gen"><button class="btn" data-addbtn="personas">Ajouter</button></div>' +
-        '<label class="lbl">Segment <span class="mini">(optionnel, libre)</span></label><div class="row">' + multi("segments", segAll.map(function (p) { return [p, p]; })) + customChips("segments", segAll) + '</div>' +
-        '<div class="addrow"><input data-add="segments" placeholder="ex. Scale-up financé, ETI industrielle…"><button class="btn" data-addbtn="segments">Ajouter</button></div>'; } },
+        '<div class="row" style="margin-top:8px">' + personasAll.map(function (p) { return '<button class="chip add" data-sugg="personas" data-val="' + esc(p) + '">+ ' + esc(p) + "</button>"; }).join("") + '</div>' +
+        '<label class="lbl">Segment <span class="mini">(optionnel, libre ; clique × pour retirer)</span></label><div class="row">' + tags("segments") + '</div>' +
+        '<div class="addrow"><input data-add="segments" placeholder="ex. Scale-up financé, ETI industrielle…"><button class="btn" data-addbtn="segments">Ajouter</button></div>' +
+        '<div class="row" style="margin-top:8px">' + segAll.map(function (s) { return '<button class="chip add" data-sugg="segments" data-val="' + esc(s) + '">+ ' + esc(s) + "</button>"; }).join("") + '</div>'; } },
     { id: "angle", icon: "ti-bulb", title: "Angle & signaux", req: true,
       sum: function () { return (S.signals.length ? S.signals.length + " signal(s)" : "cold") + " · angle " + (S.angle.trim() ? "défini" : "vide"); },
       status: function () { return S.angle.trim() ? "ok" : "todo"; },
