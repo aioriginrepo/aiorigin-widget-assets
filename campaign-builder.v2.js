@@ -43,7 +43,7 @@
 
   function defSteps() { var r = PRESETS[SD.preset || "founder_led_5"] || PRESETS.founder_led_5; return r.map(function (x, i) { return { role: x, delay: i === 0 ? 0 : DELAY }; }); }
   var S = {
-    start: "", cloneName: "", name: "", nameEdited: false,
+    start: "", cloneName: "", cloning: "", name: "", nameEdited: false,
     lang: (ctx.default_language === "fr") ? "fr" : "en", tone: "vous",
     geo: [], personas: [], segments: [], signals: [],
     objective: iv("objective") || "Booker un call de 30 min",
@@ -66,7 +66,7 @@
 
   var SECTIONS = [
     { id: "start", icon: "ti-copy", title: "Démarrer depuis une campagne",
-      sum: function () { return S.start ? ("clone : " + S.cloneName) : "Partir de zéro"; },
+      sum: function () { return S.cloning ? ("Chargement de « " + S.cloning + " »…") : (S.start ? ("cloné : " + S.cloneName) : "Partir de zéro"); },
       status: function () { return "opt"; },
       body: function () { return '<label class="lbl">Cloner une campagne existante</label><select data-sel="start">' + clones.map(function (c) { return '<option value="' + esc(c.id) + '"' + (S.start === c.id ? " selected" : "") + ">" + esc(c.name) + "</option>"; }).join("") + '</select><div class="mini" style="margin-top:6px">Reprend sa config (ciblage, angle, cadence). Ajustable ensuite.</div>'; } },
     { id: "essentiel", icon: "ti-flag", title: "Essentiel", req: true,
@@ -152,16 +152,19 @@
     else if (v.indexOf("template:") === 0) { S.templateId = v.slice(9); }
     else { if (!S.voiceTextEdited) S.voiceText = DEFAULT_VOICE; }
   }
-  function applyClone(id) {
-    var c = (ctx.campaigns || []).find(function (x) { return x.id === id; }); S.start = id; S.cloneName = c ? c.name : "";
-    if (!c) return; var cfg = c.config || {};
+  function applyConfigObj(cfg) {
+    cfg = cfg || {};
     if (cfg.language) S.lang = cfg.language === "fr" ? "fr" : "en";
     if (cfg.objective) S.objective = cfg.objective;
-    if (cfg.angle) S.angle = cfg.angle;
+    if (cfg.angle) { S.angle = cfg.angle; S.angleEdited = true; }
     if (cfg.icp_description) S.icp = cfg.icp_description;
     if (cfg.persona) { S.personas = []; cfg.persona.split(/[,;]/).forEach(function (x) { x = x.trim(); if (x) S.personas.push(x); }); }
     if (cfg.signal_type_key) S.signals = [cfg.signal_type_key];
     if (cfg.steps && cfg.steps.length) { S.steps = cfg.steps.map(function (s, i) { return { role: ROLE_ALL.indexOf(s.role) >= 0 ? s.role : "value", delay: i === 0 ? 0 : (s.delay_days != null ? s.delay_days : DELAY) }; }); if (LINKEDIN && S.steps.some(function (s) { return s.role === "connect" || s.role === "visit"; })) S.channel = "linkedin"; }
+  }
+  function applyClone(id) {
+    var c = (ctx.campaigns || []).find(function (x) { return x.id === id; }); S.start = id; S.cloneName = c ? c.name : "";
+    if (c) applyConfigObj(c.config || {});
   }
 
   function bind() {
@@ -173,7 +176,21 @@
     root.querySelectorAll("[data-rm]").forEach(function (b) { b.onclick = function () { S[this.getAttribute("data-rm")].splice(+this.getAttribute("data-i"), 1); rebuild(); }; });
     root.querySelectorAll("[data-addbtn]").forEach(function (b) { b.onclick = function () { var f = this.getAttribute("data-addbtn"); var inp = root.querySelector('[data-add="' + f + '"]'); var v = (inp.value || "").trim(); if (v && S[f].indexOf(v) < 0) S[f].push(v); pendingAdvance = true; rebuild(); }; });
     root.querySelectorAll("[data-add]").forEach(function (inp) { inp.onkeydown = function (e) { if (e.key === "Enter") { e.preventDefault(); var f = this.getAttribute("data-add"); var v = (this.value || "").trim(); if (v && S[f].indexOf(v) < 0) S[f].push(v); pendingAdvance = true; rebuild(); } }; });
-    root.querySelectorAll("[data-sel]").forEach(function (s) { s.onchange = function () { var f = this.getAttribute("data-sel"); if (f === "voice") applyVoice(this.value); else if (f === "start") applyClone(this.value); else S[f] = this.value; rebuild(); }; });
+    root.querySelectorAll("[data-sel]").forEach(function (s) { s.onchange = function () {
+      var f = this.getAttribute("data-sel");
+      if (f === "voice") { applyVoice(this.value); rebuild(); return; }
+      if (f === "start") {
+        var id = this.value;
+        if (!id) { S.start = ""; S.cloneName = ""; S.cloning = ""; rebuild(); return; }
+        var c = (ctx.campaigns || []).find(function (x) { return x.id === id; });
+        if (c && c.config) { applyClone(id); S.cloning = ""; rebuild(); return; } // instant si la config est déjà fournie (compat)
+        var nm = c ? c.name : id;                                                    // sinon : préremplissage à la demande
+        S.start = id; S.cloneName = nm; S.cloning = nm; rebuild();
+        send("Rouvre le configurateur de campagne pré-rempli à partir de la campagne « " + nm + " » : appelle l'outil campaign_builder avec prefill_campaign_id=\"" + id + "\", puis affiche le builder pré-rempli (sa config complète, ICP inclus). Ne crée aucune campagne — c'est seulement un préremplissage.");
+        return;
+      }
+      S[f] = this.value; rebuild();
+    }; });
     root.querySelectorAll('[data-txt]').forEach(function (el) { el.oninput = function () { var f = this.getAttribute("data-txt"); S[f] = this.value; if (f === "name") S.nameEdited = true; if (f === "voiceText") S.voiceTextEdited = true; meta(); }; });
     root.querySelectorAll("[data-role]").forEach(function (s) { s.onchange = function () { S.steps[+this.getAttribute("data-role")].role = this.value; enforceBreakup(); rebuild(); }; });
     root.querySelectorAll("[data-delay]").forEach(function (inp) { inp.oninput = function () { S.steps[+this.getAttribute("data-delay")].delay = Math.max(0, Math.min(30, parseInt(this.value || "0", 10))); meta(); }; });
@@ -225,5 +242,6 @@
     var b = root.querySelector("#w-create"); var prev = b.textContent; b.textContent = "Campagne envoyée ✓"; b.disabled = true; setTimeout(function () { b.textContent = prev; b.disabled = false; }, 2000);
   }
 
+  if (ctx.prefill) { S.start = ctx.prefill.campaign_id || ""; S.cloneName = ctx.prefill.name || ""; S.cloning = ""; applyConfigObj(ctx.prefill.config || {}); }
   rebuild();
 })();
