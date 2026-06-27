@@ -21,7 +21,8 @@
   var ROLE_LABELS = ctx.step_roles || { opener: "Opener", value: "Valeur", proof: "Preuve", angle: "Angle", bump: "Relance", breakup: "Breakup" };
   if (!ROLE_LABELS.connect) ROLE_LABELS.connect = "Invitation";
   if (!ROLE_LABELS.visit) ROLE_LABELS.visit = "Visite profil";
-  var ROLE_ALL = ["opener", "value", "proof", "angle", "bump", "breakup", "connect", "visit"];
+  if (!ROLE_LABELS.message) ROLE_LABELS.message = "Message";
+  var ROLE_ALL = ["opener", "value", "proof", "angle", "bump", "breakup", "connect", "visit", "message"];
   var PRESETS = ctx.presets || { light_3_email: ["opener", "value", "breakup"], founder_led_5: ["opener", "value", "proof", "bump", "breakup"], deep_7: ["opener", "value", "proof", "angle", "value", "bump", "breakup"] };
   var SD = ctx.sequence_defaults || {};
   var DELAY = SD.default_delay_days || 3, MAXST = SD.max_steps || 7;
@@ -29,7 +30,14 @@
   var PRESET_LABELS = { light_3_email: "Light", founder_led_5: "Founder-led", deep_7: "Deep", linkedin_5: "LinkedIn", multichannel_6: "Multicanal" };
   function isLinkedinPreset(k) { var r = PRESETS[k] || []; return /linkedin|multichannel|mixed/i.test(k) || r.indexOf("connect") >= 0 || r.indexOf("visit") >= 0; }
   function presetLabel(k) { return PRESET_LABELS[k] || k.replace(/_/g, " "); }
-  function roleOrder() { return S.channel === "email" ? ["opener", "value", "proof", "angle", "bump", "breakup"] : ["visit", "connect", "opener", "value", "proof", "angle", "bump", "breakup"]; }
+  function actionsFor(channel) {
+    var a = ctx.channel_actions && ctx.channel_actions[channel];
+    if (a && a.length) return a.map(function (x) { return Array.isArray(x) ? { key: x[0], label: x[1] } : { key: x.key, label: x.label || x.key }; });
+    if (channel === "linkedin") return [{ key: "visit", label: ROLE_LABELS.visit }, { key: "connect", label: ROLE_LABELS.connect }, { key: "message", label: ROLE_LABELS.message }, { key: "breakup", label: ROLE_LABELS.breakup }];
+    return ["opener", "value", "proof", "angle", "bump", "breakup"].map(function (r) { return { key: r, label: ROLE_LABELS[r] || r }; });
+  }
+  function channelForRole(r) { return (r === "visit" || r === "connect" || r === "message") ? "linkedin" : "email"; }
+  function stepChannel(st) { return S.channel === "mixed" ? (st.channel || channelForRole(st.role)) : S.channel; }
 
   var signalTypes = ctx.signal_types || [];
   var clones = [{ id: "", name: "— aucune (partir de zéro) —" }].concat(ctx.campaigns || []);
@@ -41,7 +49,7 @@
   var geoSugg = ["UK", "Germany", "France", "Spain", "DACH", "Benelux", "Nordics"];
   var objChips = ["Booker un call de 30 min", "Envoyer le rapport échantillon", "Intro douce / awareness"];
 
-  function defSteps() { var r = PRESETS[SD.preset || "founder_led_5"] || PRESETS.founder_led_5; return r.map(function (x, i) { return { role: x, delay: i === 0 ? 0 : DELAY }; }); }
+  function defSteps() { var r = PRESETS[SD.preset || "founder_led_5"] || PRESETS.founder_led_5; return r.map(function (x, i) { return { role: x, delay: i === 0 ? 0 : DELAY, channel: channelForRole(x) }; }); }
   var S = {
     start: "", cloneName: "", cloning: "", name: "", nameEdited: false,
     lang: (ctx.default_language === "fr") ? "fr" : "en", tone: "vous",
@@ -54,7 +62,13 @@
   function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
   function autoName() { return (S.geo[0] || "Multi-geo") + " GEO — " + (S.personas[0] || "décideurs") + " — " + monthYear(); }
   function monthYear() { var m = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]; var d = new Date(); return m[d.getMonth()] + " " + d.getFullYear(); }
-  function enforceBreakup() { if (S.steps.length >= 2) { S.steps.forEach(function (s, i) { if (i < S.steps.length - 1 && s.role === "breakup") s.role = "value"; }); S.steps[S.steps.length - 1].role = "breakup"; } }
+  function enforceBreakup() { if (S.steps.length >= 2) { S.steps.forEach(function (s, i) { if (i < S.steps.length - 1 && s.role === "breakup") s.role = stepChannel(s) === "linkedin" ? "message" : "value"; }); S.steps[S.steps.length - 1].role = "breakup"; } }
+  function normalizeStepsForChannel() {
+    if (S.channel === "email") { S.steps.forEach(function (st) { st.channel = "email"; if (channelForRole(st.role) === "linkedin") st.role = "value"; }); }
+    else if (S.channel === "linkedin") { S.steps.forEach(function (st) { st.channel = "linkedin"; var acts = actionsFor("linkedin"); if (!acts.some(function (a) { return a.key === st.role; })) st.role = "message"; }); }
+    else { S.steps.forEach(function (st) { if (!st.channel) st.channel = channelForRole(st.role); }); }
+    enforceBreakup();
+  }
   function cadDays() { var c = 0; S.steps.forEach(function (s) { c += s.delay; }); return c; }
   function presetName() { var key = S.steps.map(function (s) { return s.role; }).join(); for (var k in PRESETS) if (PRESETS[k].join() === key) return PRESET_LABELS[k] || k; return "Personnalisé"; }
   function sigType(k) { for (var i = 0; i < signalTypes.length; i++) if (signalTypes[i].key === k) return signalTypes[i]; return null; }
@@ -103,11 +117,19 @@
       status: function () { return "ok"; },
       body: function () {
         var chan = LINKEDIN ? '<div class="row" style="margin-bottom:8px"><span class="mini" style="margin-right:4px">Canal</span>' + chip("channel", [["email", "Email"], ["linkedin", "LinkedIn"], ["mixed", "Mixte"]]) + '</div>' : '';
-        var rows = S.steps.map(function (st, i) { var last = i === S.steps.length - 1;
-          return '<div class="step' + (st.role === "breakup" ? " brk" : "") + '"><span class="ix">Étape ' + (i + 1) + '</span><select data-role="' + i + '"' + (last && SD.enforce_breakup_last !== false ? " disabled" : "") + ">" + roleOrder().map(function (r) { return '<option value="' + r + '"' + (st.role === r ? " selected" : "") + ">" + esc(ROLE_LABELS[r] || r) + "</option>"; }).join("") + '</select><span class="mini">J+</span><input class="dl" type="number" min="0" max="30" data-delay="' + i + '" value="' + st.delay + '"' + (i === 0 ? " disabled" : "") + '><button class="btn" data-rmstep="' + i + '"' + (S.steps.length <= 1 ? " disabled" : "") + ">×</button></div>"; }).join("");
+        var mixed = S.channel === "mixed";
+        var rows = S.steps.map(function (st, i) {
+          var last = i === S.steps.length - 1;
+          var ch = stepChannel(st);
+          var acts = actionsFor(ch);
+          if (!acts.some(function (a) { return a.key === st.role; })) st.role = (acts[0] && acts[0].key) || "value";
+          var chanSel = mixed ? '<select data-stepchan="' + i + '" title="Canal de l\'étape"><option value="email"' + (ch === "email" ? " selected" : "") + '>Email</option><option value="linkedin"' + (ch === "linkedin" ? " selected" : "") + '>LinkedIn</option></select>' : '';
+          var actSel = '<select data-role="' + i + '"' + (last && SD.enforce_breakup_last !== false ? " disabled" : "") + ">" + acts.map(function (a) { return '<option value="' + a.key + '"' + (st.role === a.key ? " selected" : "") + ">" + esc(a.label) + "</option>"; }).join("") + "</select>";
+          return '<div class="step' + (st.role === "breakup" ? " brk" : "") + '"><span class="ix">Étape ' + (i + 1) + '</span>' + chanSel + actSel + '<span class="mini">J+</span><input class="dl" type="number" min="0" max="30" data-delay="' + i + '" value="' + st.delay + '"' + (i === 0 ? " disabled" : "") + '><button class="btn" data-rmstep="' + i + '"' + (S.steps.length <= 1 ? " disabled" : "") + ">×</button></div>";
+        }).join("");
         var presetOpts = '<option value="">Preset…</option>' + Object.keys(PRESETS).filter(function (k) { return LINKEDIN || !isLinkedinPreset(k); }).map(function (k) { return '<option value="' + k + '">' + esc(presetLabel(k)) + " · " + PRESETS[k].length + "</option>"; }).join("");
-        var chanNote = S.channel === "email" ? "canal email" : (S.channel === "mixed" ? "canal mixte (email + LinkedIn)" : "canal LinkedIn");
-        return chan + '<div class="mini" style="margin:8px 0">Rôle + délai par étape · breakup verrouillé en fin · ' + chanNote + ' · rédaction IA par lead.</div>' + rows + '<div class="row" style="margin-top:4px"><button class="btn" data-addstep="1">+ Ajouter une étape</button><select data-preset="1" style="width:auto">' + presetOpts + '</select><span class="mini" id="cad-sum">' + S.steps.length + " étapes · dernier contact ~J+" + cadDays() + "</span></div>"; } },
+        var chanNote = S.channel === "email" ? "canal email" : (S.channel === "mixed" ? "multicanal (email + LinkedIn par étape)" : "canal LinkedIn");
+        return chan + '<div class="mini" style="margin:8px 0">Action + délai par étape · breakup verrouillé en fin · ' + chanNote + ' · le contenu se rédige dans la maquette (héritée).</div>' + rows + '<div class="row" style="margin-top:4px"><button class="btn" data-addstep="1">+ Ajouter une étape</button><select data-preset="1" style="width:auto">' + presetOpts + '</select><span class="mini" id="cad-sum">' + S.steps.length + " étapes · dernier contact ~J+" + cadDays() + "</span></div>"; } },
     { id: "leads", icon: "ti-users", title: "Leads", req: true,
       sum: function () { return S.leads === "source" ? (S.vol + " leads à sourcer") : "sélection existante"; },
       status: function () { return "ok"; },
@@ -160,7 +182,10 @@
     if (cfg.icp_description) S.icp = cfg.icp_description;
     if (cfg.persona) { S.personas = []; cfg.persona.split(/[,;]/).forEach(function (x) { x = x.trim(); if (x) S.personas.push(x); }); }
     if (cfg.signal_type_key) S.signals = [cfg.signal_type_key];
-    if (cfg.steps && cfg.steps.length) { S.steps = cfg.steps.map(function (s, i) { return { role: ROLE_ALL.indexOf(s.role) >= 0 ? s.role : "value", delay: i === 0 ? 0 : (s.delay_days != null ? s.delay_days : DELAY) }; }); if (LINKEDIN && S.steps.some(function (s) { return s.role === "connect" || s.role === "visit"; })) S.channel = "linkedin"; }
+    if (cfg.steps && cfg.steps.length) {
+      S.steps = cfg.steps.map(function (s, i) { var role = ROLE_ALL.indexOf(s.role) >= 0 ? s.role : "value"; return { role: role, delay: i === 0 ? 0 : (s.delay_days != null ? s.delay_days : DELAY), channel: s.channel || channelForRole(role) }; });
+      if (LINKEDIN) { var chs = S.steps.map(function (st) { return st.channel; }); S.channel = chs.every(function (c) { return c === "linkedin"; }) ? "linkedin" : (chs.some(function (c) { return c === "linkedin"; }) ? "mixed" : "email"); }
+    }
   }
   function applyClone(id) {
     var c = (ctx.campaigns || []).find(function (x) { return x.id === id; }); S.start = id; S.cloneName = c ? c.name : "";
@@ -169,7 +194,7 @@
 
   function bind() {
     root.querySelectorAll("[data-acc]").forEach(function (b) { b.onclick = function () { var id = this.getAttribute("data-acc"); openId = (openId === id ? "" : id); rebuild(); }; });
-    root.querySelectorAll("[data-chip]").forEach(function (b) { b.onclick = function () { var f = this.getAttribute("data-chip"); S[f] = this.getAttribute("data-val"); rebuild(); }; });
+    root.querySelectorAll("[data-chip]").forEach(function (b) { b.onclick = function () { var f = this.getAttribute("data-chip"); S[f] = this.getAttribute("data-val"); if (f === "channel") normalizeStepsForChannel(); rebuild(); }; });
     root.querySelectorAll("[data-obj]").forEach(function (b) { b.onclick = function () { S.objective = this.getAttribute("data-obj"); rebuild(); }; });
     root.querySelectorAll("[data-mc]").forEach(function (b) { b.onclick = function () { var f = this.getAttribute("data-mc"), v = this.getAttribute("data-val"); var i = S[f].indexOf(v); if (i >= 0) S[f].splice(i, 1); else S[f].push(v); pendingAdvance = true; rebuild(); }; });
     root.querySelectorAll("[data-sugg]").forEach(function (b) { b.onclick = function () { var f = this.getAttribute("data-sugg"), v = this.getAttribute("data-val"); if (S[f].indexOf(v) < 0) S[f].push(v); pendingAdvance = true; rebuild(); }; });
@@ -193,10 +218,11 @@
     }; });
     root.querySelectorAll('[data-txt]').forEach(function (el) { el.oninput = function () { var f = this.getAttribute("data-txt"); S[f] = this.value; if (f === "name") S.nameEdited = true; if (f === "voiceText") S.voiceTextEdited = true; meta(); }; });
     root.querySelectorAll("[data-role]").forEach(function (s) { s.onchange = function () { S.steps[+this.getAttribute("data-role")].role = this.value; enforceBreakup(); rebuild(); }; });
+    root.querySelectorAll("[data-stepchan]").forEach(function (s) { s.onchange = function () { var st = S.steps[+this.getAttribute("data-stepchan")]; st.channel = this.value; var acts = actionsFor(st.channel); if (!acts.some(function (a) { return a.key === st.role; })) st.role = (acts[0] && acts[0].key) || "value"; enforceBreakup(); rebuild(); }; });
     root.querySelectorAll("[data-delay]").forEach(function (inp) { inp.oninput = function () { S.steps[+this.getAttribute("data-delay")].delay = Math.max(0, Math.min(30, parseInt(this.value || "0", 10))); meta(); }; });
     root.querySelectorAll("[data-rmstep]").forEach(function (b) { b.onclick = function () { if (S.steps.length > 1) { S.steps.splice(+this.getAttribute("data-rmstep"), 1); enforceBreakup(); rebuild(); } }; });
-    root.querySelectorAll("[data-addstep]").forEach(function (b) { b.onclick = function () { if (S.steps.length < MAXST) { S.steps.push({ role: "value", delay: DELAY }); enforceBreakup(); rebuild(); } }; });
-    root.querySelectorAll("[data-preset]").forEach(function (s) { s.onchange = function () { var k = this.value; if (PRESETS[k]) { if (isLinkedinPreset(k)) S.channel = /multichannel|mixed/i.test(k) ? "mixed" : "linkedin"; else S.channel = "email"; S.steps = PRESETS[k].map(function (r, i) { return { role: r, delay: i === 0 ? 0 : DELAY }; }); rebuild(); } }; });
+    root.querySelectorAll("[data-addstep]").forEach(function (b) { b.onclick = function () { if (S.steps.length < MAXST) { var ch = S.channel === "linkedin" ? "linkedin" : "email"; S.steps.push({ role: ch === "linkedin" ? "message" : "value", delay: DELAY, channel: ch }); enforceBreakup(); rebuild(); } }; });
+    root.querySelectorAll("[data-preset]").forEach(function (s) { s.onchange = function () { var k = this.value; if (PRESETS[k]) { S.steps = PRESETS[k].map(function (r, i) { return { role: r, delay: i === 0 ? 0 : DELAY, channel: channelForRole(r) }; }); var chs = S.steps.map(function (st) { return st.channel; }); S.channel = chs.every(function (c) { return c === "linkedin"; }) ? "linkedin" : (chs.some(function (c) { return c === "linkedin"; }) ? "mixed" : "email"); rebuild(); } }; });
     root.querySelectorAll("[data-vol]").forEach(function (b) { b.onclick = function () { S.vol = Math.max(5, Math.min(60, S.vol + (+this.getAttribute("data-vol")))); rebuild(); }; });
     var cb = root.querySelector("#w-create"); if (cb) cb.onclick = submit;
   }
@@ -205,7 +231,7 @@
   function submit() {
     if (root.querySelector("#w-create").disabled) return;
     var name = S.name.trim() || autoName();
-    var seq = S.steps.map(function (st, i) { return (i + 1) + ". " + (ROLE_LABELS[st.role] || st.role) + " (J+" + st.delay + ")"; }).join(" · ");
+    var seq = S.steps.map(function (st, i) { var ch = stepChannel(st); return (i + 1) + ". [" + (ch === "linkedin" ? "LinkedIn" : "Email") + "] " + (ROLE_LABELS[st.role] || st.role) + " (J+" + st.delay + ")"; }).join(" · ");
     var sigList = S.signals.map(function (k) { var t = sigType(k); return (t ? t.name : k) + " [" + k + "]"; });
     var voiceLine = S.voice === "workspace" ? "voix du workspace" : (S.baseModelId ? ("modèle IA " + S.baseModelId) : ("modèle de séquence " + S.templateId));
     var L = [];
@@ -235,7 +261,7 @@
       L.push("  Récupère les lead_ids.");
     } else { L.push("Étape 1 — ENRÔLEMENT : utilise les lead_ids de la sélection existante (je te les précise). Aucun sourcing."); }
     L.push("");
-    L.push("Étape 2 — CAMPAGNE : campaign_create (name + angle + persona + steps selon la cadence, lead_ids)." + (S.baseModelId ? " Passe base_model_id." : (S.templateId ? " Repars du template." : "")));
+    L.push("Étape 2 — CAMPAGNE : campaign_create (name + angle + persona + steps selon la cadence — chaque étape porte son canal (email/linkedin) + son action + son délai, lead_ids). La maquette héritera de cette séquence ; le contenu de chaque étape (email ou message/action LinkedIn) y sera rédigé." + (S.baseModelId ? " Passe base_model_id." : (S.templateId ? " Repars du template." : "")));
     L.push("Étape 3 — set_campaign_config sur le DRAFT : objective, angle, persona, icp_description" + (S.signals.length ? (", signal_type_key=" + S.signals[0]) : "") + (S.channel !== "email" ? (", channel_mode=" + S.channel + " (séquence " + presetName() + ")") : "") + (S.voiceText.trim() ? ", voice_description (override)" : "") + ".");
     L.push("Étape 4 — montre-moi la maquette éditable sur le meilleur lead, fais-la valider, puis lance.");
     send(L.join("\n"));
