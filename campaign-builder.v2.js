@@ -22,7 +22,7 @@
   if (!ROLE_LABELS.connect) ROLE_LABELS.connect = "Invitation";
   if (!ROLE_LABELS.visit) ROLE_LABELS.visit = "Visite profil";
   if (!ROLE_LABELS.message) ROLE_LABELS.message = "Message";
-  var ROLE_ALL = ["opener", "value", "proof", "angle", "bump", "breakup", "connect", "visit", "message"];
+  var ROLE_ALL = ["opener", "value", "proof", "angle", "bump", "breakup", "connect", "visit", "message", "linkedin_invite", "linkedin_dm", "linkedin_visit", "linkedin_like", "linkedin_comment"];
   var PRESETS = ctx.presets || { light_3_email: ["opener", "value", "breakup"], founder_led_5: ["opener", "value", "proof", "bump", "breakup"], deep_7: ["opener", "value", "proof", "angle", "value", "bump", "breakup"] };
   var SD = ctx.sequence_defaults || {};
   var DELAY = SD.default_delay_days || 3, MAXST = SD.max_steps || 7;
@@ -30,14 +30,23 @@
   var PRESET_LABELS = { light_3_email: "Light", founder_led_5: "Founder-led", deep_7: "Deep", linkedin_5: "LinkedIn", multichannel_6: "Multicanal" };
   function isLinkedinPreset(k) { var r = PRESETS[k] || []; return /linkedin|multichannel|mixed/i.test(k) || r.indexOf("connect") >= 0 || r.indexOf("visit") >= 0; }
   function presetLabel(k) { return PRESET_LABELS[k] || k.replace(/_/g, " "); }
-  function actionsFor(channel) {
-    var a = ctx.channel_actions && ctx.channel_actions[channel];
+  function lkChannels() {
+    var ac = ctx.available_channels;
+    if (ac && ac.length) { var lk = ac.filter(function (c) { return (c.channel || "") === "linkedin"; }).map(function (c) { return { key: c.key, label: c.label || c.key }; }); if (lk.length) return lk; }
+    var a = ctx.channel_actions && ctx.channel_actions.linkedin;
     if (a && a.length) return a.map(function (x) { return Array.isArray(x) ? { key: x[0], label: x[1] } : { key: x.key, label: x.label || x.key }; });
-    if (channel === "linkedin") return [{ key: "visit", label: ROLE_LABELS.visit }, { key: "connect", label: ROLE_LABELS.connect }, { key: "message", label: ROLE_LABELS.message }, { key: "breakup", label: ROLE_LABELS.breakup }];
+    return [{ key: "linkedin_invite", label: "LinkedIn · Invitation" }, { key: "linkedin_dm", label: "LinkedIn · Message" }, { key: "linkedin_visit", label: "LinkedIn · Visite profil" }];
+  }
+  function actionsFor(channel) {
+    if (channel === "linkedin") return lkChannels();
+    var a = ctx.channel_actions && ctx.channel_actions.email;
+    if (a && a.length) return a.map(function (x) { return Array.isArray(x) ? { key: x[0], label: x[1] } : { key: x.key, label: x.label || x.key }; });
     return ["opener", "value", "proof", "angle", "bump", "breakup"].map(function (r) { return { key: r, label: ROLE_LABELS[r] || r }; });
   }
-  function channelForRole(r) { return (r === "visit" || r === "connect" || r === "message") ? "linkedin" : "email"; }
+  function mapRole(r) { return r === "visit" ? "linkedin_visit" : (r === "connect" ? "linkedin_invite" : (r === "message" ? "linkedin_dm" : r)); }
+  function channelForRole(r) { return (/^linkedin/.test(r) || r === "visit" || r === "connect" || r === "message") ? "linkedin" : "email"; }
   function stepChannel(st) { return S.channel === "mixed" ? (st.channel || channelForRole(st.role)) : S.channel; }
+  function labelFor(key) { var ac = ctx.available_channels; if (ac) { for (var i = 0; i < ac.length; i++) if (ac[i].key === key) return ac[i].label || key; } return ROLE_LABELS[key] || key; }
 
   var signalTypes = ctx.signal_types || [];
   var clones = [{ id: "", name: "— aucune (partir de zéro) —" }].concat(ctx.campaigns || []);
@@ -49,7 +58,7 @@
   var geoSugg = ["UK", "Germany", "France", "Spain", "DACH", "Benelux", "Nordics"];
   var objChips = ["Booker un call de 30 min", "Envoyer le rapport échantillon", "Intro douce / awareness"];
 
-  function defSteps() { var r = PRESETS[SD.preset || "founder_led_5"] || PRESETS.founder_led_5; return r.map(function (x, i) { return { role: x, delay: i === 0 ? 0 : DELAY, channel: channelForRole(x) }; }); }
+  function defSteps() { var r = PRESETS[SD.preset || "founder_led_5"] || PRESETS.founder_led_5; return r.map(function (x, i) { var role = mapRole(x); return { role: role, delay: i === 0 ? 0 : DELAY, channel: channelForRole(role) }; }); }
   var S = {
     start: "", cloneName: "", cloning: "", name: "", nameEdited: false,
     lang: (ctx.default_language === "fr") ? "fr" : "en", tone: "vous",
@@ -62,15 +71,15 @@
   function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
   function autoName() { return (S.geo[0] || "Multi-geo") + " GEO — " + (S.personas[0] || "décideurs") + " — " + monthYear(); }
   function monthYear() { var m = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]; var d = new Date(); return m[d.getMonth()] + " " + d.getFullYear(); }
-  function enforceBreakup() { if (S.steps.length >= 2) { S.steps.forEach(function (s, i) { if (i < S.steps.length - 1 && s.role === "breakup") s.role = stepChannel(s) === "linkedin" ? "message" : "value"; }); S.steps[S.steps.length - 1].role = "breakup"; } }
+  function enforceBreakup() { if (S.steps.length >= 2) { var last = S.steps[S.steps.length - 1]; if (stepChannel(last) === "email" && SD.enforce_breakup_last !== false) { S.steps.forEach(function (s, i) { if (i < S.steps.length - 1 && s.role === "breakup") s.role = "value"; }); last.role = "breakup"; } } }
   function normalizeStepsForChannel() {
     if (S.channel === "email") { S.steps.forEach(function (st) { st.channel = "email"; if (channelForRole(st.role) === "linkedin") st.role = "value"; }); }
-    else if (S.channel === "linkedin") { S.steps.forEach(function (st) { st.channel = "linkedin"; var acts = actionsFor("linkedin"); if (!acts.some(function (a) { return a.key === st.role; })) st.role = "message"; }); }
+    else if (S.channel === "linkedin") { var acts = actionsFor("linkedin"); S.steps.forEach(function (st) { st.channel = "linkedin"; if (!acts.some(function (a) { return a.key === st.role; })) st.role = (acts[0] && acts[0].key) || "linkedin_dm"; }); }
     else { S.steps.forEach(function (st) { if (!st.channel) st.channel = channelForRole(st.role); }); }
     enforceBreakup();
   }
   function cadDays() { var c = 0; S.steps.forEach(function (s) { c += s.delay; }); return c; }
-  function presetName() { var key = S.steps.map(function (s) { return s.role; }).join(); for (var k in PRESETS) if (PRESETS[k].join() === key) return PRESET_LABELS[k] || k; return "Personnalisé"; }
+  function presetName() { var key = S.steps.map(function (s) { return s.role; }).join(); for (var k in PRESETS) if (PRESETS[k].map(mapRole).join() === key) return PRESET_LABELS[k] || k; return "Personnalisé"; }
   function sigType(k) { for (var i = 0; i < signalTypes.length; i++) if (signalTypes[i].key === k) return signalTypes[i]; return null; }
 
   function chip(f, pairs) { return pairs.map(function (p) { return '<button class="chip' + (S[f] === p[0] ? " on" : "") + '" data-chip="' + f + '" data-val="' + esc(p[0]) + '">' + esc(p[1]) + "</button>"; }).join(""); }
@@ -124,7 +133,8 @@
           var acts = actionsFor(ch);
           if (!acts.some(function (a) { return a.key === st.role; })) st.role = (acts[0] && acts[0].key) || "value";
           var chanSel = mixed ? '<select data-stepchan="' + i + '" title="Canal de l\'étape"><option value="email"' + (ch === "email" ? " selected" : "") + '>Email</option><option value="linkedin"' + (ch === "linkedin" ? " selected" : "") + '>LinkedIn</option></select>' : '';
-          var actSel = '<select data-role="' + i + '"' + (last && SD.enforce_breakup_last !== false ? " disabled" : "") + ">" + acts.map(function (a) { return '<option value="' + a.key + '"' + (st.role === a.key ? " selected" : "") + ">" + esc(a.label) + "</option>"; }).join("") + "</select>";
+          var lockLast = last && SD.enforce_breakup_last !== false && ch === "email";
+          var actSel = '<select data-role="' + i + '"' + (lockLast ? " disabled" : "") + ">" + acts.map(function (a) { return '<option value="' + a.key + '"' + (st.role === a.key ? " selected" : "") + ">" + esc(a.label) + "</option>"; }).join("") + "</select>";
           return '<div class="step' + (st.role === "breakup" ? " brk" : "") + '"><span class="ix">Étape ' + (i + 1) + '</span>' + chanSel + actSel + '<span class="mini">J+</span><input class="dl" type="number" min="0" max="30" data-delay="' + i + '" value="' + st.delay + '"' + (i === 0 ? " disabled" : "") + '><button class="btn" data-rmstep="' + i + '"' + (S.steps.length <= 1 ? " disabled" : "") + ">×</button></div>";
         }).join("");
         var presetOpts = '<option value="">Preset…</option>' + Object.keys(PRESETS).filter(function (k) { return LINKEDIN || !isLinkedinPreset(k); }).map(function (k) { return '<option value="' + k + '">' + esc(presetLabel(k)) + " · " + PRESETS[k].length + "</option>"; }).join("");
@@ -183,7 +193,7 @@
     if (cfg.persona) { S.personas = []; cfg.persona.split(/[,;]/).forEach(function (x) { x = x.trim(); if (x) S.personas.push(x); }); }
     if (cfg.signal_type_key) S.signals = [cfg.signal_type_key];
     if (cfg.steps && cfg.steps.length) {
-      S.steps = cfg.steps.map(function (s, i) { var role = ROLE_ALL.indexOf(s.role) >= 0 ? s.role : "value"; return { role: role, delay: i === 0 ? 0 : (s.delay_days != null ? s.delay_days : DELAY), channel: s.channel || channelForRole(role) }; });
+      S.steps = cfg.steps.map(function (s, i) { var role = mapRole(s.role); role = ROLE_ALL.indexOf(role) >= 0 ? role : "value"; return { role: role, delay: i === 0 ? 0 : (s.delay_days != null ? s.delay_days : DELAY), channel: s.channel || channelForRole(role) }; });
       if (LINKEDIN) { var chs = S.steps.map(function (st) { return st.channel; }); S.channel = chs.every(function (c) { return c === "linkedin"; }) ? "linkedin" : (chs.some(function (c) { return c === "linkedin"; }) ? "mixed" : "email"); }
     }
   }
@@ -221,8 +231,8 @@
     root.querySelectorAll("[data-stepchan]").forEach(function (s) { s.onchange = function () { var st = S.steps[+this.getAttribute("data-stepchan")]; st.channel = this.value; var acts = actionsFor(st.channel); if (!acts.some(function (a) { return a.key === st.role; })) st.role = (acts[0] && acts[0].key) || "value"; enforceBreakup(); rebuild(); }; });
     root.querySelectorAll("[data-delay]").forEach(function (inp) { inp.oninput = function () { S.steps[+this.getAttribute("data-delay")].delay = Math.max(0, Math.min(30, parseInt(this.value || "0", 10))); meta(); }; });
     root.querySelectorAll("[data-rmstep]").forEach(function (b) { b.onclick = function () { if (S.steps.length > 1) { S.steps.splice(+this.getAttribute("data-rmstep"), 1); enforceBreakup(); rebuild(); } }; });
-    root.querySelectorAll("[data-addstep]").forEach(function (b) { b.onclick = function () { if (S.steps.length < MAXST) { var ch = S.channel === "linkedin" ? "linkedin" : "email"; S.steps.push({ role: ch === "linkedin" ? "message" : "value", delay: DELAY, channel: ch }); enforceBreakup(); rebuild(); } }; });
-    root.querySelectorAll("[data-preset]").forEach(function (s) { s.onchange = function () { var k = this.value; if (PRESETS[k]) { S.steps = PRESETS[k].map(function (r, i) { return { role: r, delay: i === 0 ? 0 : DELAY, channel: channelForRole(r) }; }); var chs = S.steps.map(function (st) { return st.channel; }); S.channel = chs.every(function (c) { return c === "linkedin"; }) ? "linkedin" : (chs.some(function (c) { return c === "linkedin"; }) ? "mixed" : "email"); rebuild(); } }; });
+    root.querySelectorAll("[data-addstep]").forEach(function (b) { b.onclick = function () { if (S.steps.length < MAXST) { var ch = S.channel === "linkedin" ? "linkedin" : "email"; var role = ch === "linkedin" ? ((actionsFor("linkedin")[0] || {}).key || "linkedin_dm") : "value"; S.steps.push({ role: role, delay: DELAY, channel: ch }); enforceBreakup(); rebuild(); } }; });
+    root.querySelectorAll("[data-preset]").forEach(function (s) { s.onchange = function () { var k = this.value; if (PRESETS[k]) { S.steps = PRESETS[k].map(function (r, i) { var role = mapRole(r); return { role: role, delay: i === 0 ? 0 : DELAY, channel: channelForRole(role) }; }); var chs = S.steps.map(function (st) { return st.channel; }); S.channel = chs.every(function (c) { return c === "linkedin"; }) ? "linkedin" : (chs.some(function (c) { return c === "linkedin"; }) ? "mixed" : "email"); rebuild(); } }; });
     root.querySelectorAll("[data-vol]").forEach(function (b) { b.onclick = function () { S.vol = Math.max(5, Math.min(60, S.vol + (+this.getAttribute("data-vol")))); rebuild(); }; });
     var cb = root.querySelector("#w-create"); if (cb) cb.onclick = submit;
   }
@@ -231,7 +241,7 @@
   function submit() {
     if (root.querySelector("#w-create").disabled) return;
     var name = S.name.trim() || autoName();
-    var seq = S.steps.map(function (st, i) { var ch = stepChannel(st); return (i + 1) + ". [" + (ch === "linkedin" ? "LinkedIn" : "Email") + "] " + (ROLE_LABELS[st.role] || st.role) + " (J+" + st.delay + ")"; }).join(" · ");
+    var seq = S.steps.map(function (st, i) { var ch = stepChannel(st); var lbl = ch === "linkedin" ? labelFor(st.role) : (ROLE_LABELS[st.role] || st.role); return (i + 1) + ". " + lbl + " (J+" + st.delay + ")"; }).join(" · ");
     var sigList = S.signals.map(function (k) { var t = sigType(k); return (t ? t.name : k) + " [" + k + "]"; });
     var voiceLine = S.voice === "workspace" ? "voix du workspace" : (S.baseModelId ? ("modèle IA " + S.baseModelId) : ("modèle de séquence " + S.templateId));
     var L = [];
