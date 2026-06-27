@@ -29,6 +29,8 @@
   var LINKEDIN = !!(ctx.linkedin_enabled || ctx.linkedinEnabled);
   var PRESET_LABELS = { light_3_email: "Light", founder_led_5: "Founder-led", deep_7: "Deep", linkedin_5: "LinkedIn", multichannel_6: "Multicanal" };
   function isLinkedinPreset(k) { var r = PRESETS[k] || []; return /linkedin|multichannel|mixed/i.test(k) || r.indexOf("connect") >= 0 || r.indexOf("visit") >= 0; }
+  function presetMode(k) { var pc = ctx.preset_catalog; if (pc) { for (var i = 0; i < pc.length; i++) if (pc[i].preset === k) return pc[i].channel_mode; } return isLinkedinPreset(k) ? "mixed" : "email"; }
+  function presetStepRole(r, mode) { if (r === "visit" || r === "connect" || r === "message") return mapRole(r); return mode === "linkedin" ? "linkedin_dm" : r; }
   function presetLabel(k) { return PRESET_LABELS[k] || k.replace(/_/g, " "); }
   function lkChannels() {
     var ac = ctx.available_channels;
@@ -232,7 +234,7 @@
     root.querySelectorAll("[data-delay]").forEach(function (inp) { inp.oninput = function () { S.steps[+this.getAttribute("data-delay")].delay = Math.max(0, Math.min(30, parseInt(this.value || "0", 10))); meta(); }; });
     root.querySelectorAll("[data-rmstep]").forEach(function (b) { b.onclick = function () { if (S.steps.length > 1) { S.steps.splice(+this.getAttribute("data-rmstep"), 1); enforceBreakup(); rebuild(); } }; });
     root.querySelectorAll("[data-addstep]").forEach(function (b) { b.onclick = function () { if (S.steps.length < MAXST) { var ch = S.channel === "linkedin" ? "linkedin" : "email"; var role = ch === "linkedin" ? ((actionsFor("linkedin")[0] || {}).key || "linkedin_dm") : "value"; S.steps.push({ role: role, delay: DELAY, channel: ch }); enforceBreakup(); rebuild(); } }; });
-    root.querySelectorAll("[data-preset]").forEach(function (s) { s.onchange = function () { var k = this.value; if (PRESETS[k]) { S.steps = PRESETS[k].map(function (r, i) { var role = mapRole(r); return { role: role, delay: i === 0 ? 0 : DELAY, channel: channelForRole(role) }; }); var chs = S.steps.map(function (st) { return st.channel; }); S.channel = chs.every(function (c) { return c === "linkedin"; }) ? "linkedin" : (chs.some(function (c) { return c === "linkedin"; }) ? "mixed" : "email"); rebuild(); } }; });
+    root.querySelectorAll("[data-preset]").forEach(function (s) { s.onchange = function () { var k = this.value; if (PRESETS[k]) { var mode = presetMode(k); S.steps = PRESETS[k].map(function (r, i) { var role = presetStepRole(r, mode); return { role: role, delay: i === 0 ? 0 : DELAY, channel: channelForRole(role) }; }); var chs = S.steps.map(function (st) { return st.channel; }); S.channel = mode || (chs.every(function (c) { return c === "linkedin"; }) ? "linkedin" : (chs.some(function (c) { return c === "linkedin"; }) ? "mixed" : "email")); rebuild(); } }; });
     root.querySelectorAll("[data-vol]").forEach(function (b) { b.onclick = function () { S.vol = Math.max(5, Math.min(60, S.vol + (+this.getAttribute("data-vol")))); rebuild(); }; });
     var cb = root.querySelector("#w-create"); if (cb) cb.onclick = submit;
   }
