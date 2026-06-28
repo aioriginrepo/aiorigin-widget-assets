@@ -193,10 +193,11 @@
     if (cfg.angle) { S.angle = cfg.angle; S.angleEdited = true; }
     if (cfg.icp_description) S.icp = cfg.icp_description;
     if (cfg.persona) { S.personas = []; cfg.persona.split(/[,;]/).forEach(function (x) { x = x.trim(); if (x) S.personas.push(x); }); }
+    if (cfg.geo) { S.geo = Array.isArray(cfg.geo) ? cfg.geo.slice() : String(cfg.geo).split(/[,;]/).map(function (x) { return x.trim(); }).filter(Boolean); }
     if (cfg.signal_type_key) S.signals = [cfg.signal_type_key];
     if (cfg.steps && cfg.steps.length) {
-      S.steps = cfg.steps.map(function (s, i) { var role = mapRole(s.role); role = ROLE_ALL.indexOf(role) >= 0 ? role : "value"; return { role: role, delay: i === 0 ? 0 : (s.delay_days != null ? s.delay_days : DELAY), channel: s.channel || channelForRole(role) }; });
-      if (LINKEDIN) { var chs = S.steps.map(function (st) { return st.channel; }); S.channel = chs.every(function (c) { return c === "linkedin"; }) ? "linkedin" : (chs.some(function (c) { return c === "linkedin"; }) ? "mixed" : "email"); }
+      S.steps = cfg.steps.map(function (s, i) { var role = mapRole(s.role); role = ROLE_ALL.indexOf(role) >= 0 ? role : "value"; var ch = /^linkedin/.test(s.channel || "") ? "linkedin" : (s.channel || channelForRole(role)); return { role: role, delay: i === 0 ? 0 : (s.delay_days != null ? s.delay_days : DELAY), channel: ch }; });
+      if (LINKEDIN) { var chs = S.steps.map(function (st) { return st.channel; }); S.channel = chs.every(function (c) { return /^linkedin/.test(c); }) ? "linkedin" : (chs.some(function (c) { return /^linkedin/.test(c); }) ? "mixed" : "email"); }
     }
   }
   function applyClone(id) {
