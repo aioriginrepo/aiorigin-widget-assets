@@ -49,7 +49,13 @@
 .ao-leads .t-ok{color:var(--color-text-success,#166534)}
 .ao-leads .t-warn{color:var(--color-text-warning,#92400e)}
 .ao-leads .t-bad{color:var(--color-text-danger,#991b1b)}
+/* AJOUT (correctif #3) : état neutre pour email non demandé (verdict UNCERTAIN non enrichi).
+   À utiliser par le renderer : <span class="trust t-idle">— non demandé</span>.
+   Ne JAMAIS afficher « en attente » pour un email_status=not_requested. */
+.ao-leads .t-idle{color:var(--color-text-tertiary,#9b9890)}
 .ao-leads .relink{color:var(--color-text-link,#2563eb);text-decoration:none;cursor:pointer}
+/* AJOUT (correctif #3, optionnel) : lien d'action « Demander l'email » (besoin d'un handler JS). */
+.ao-leads .askmail{color:var(--color-text-info,#185fa5);text-decoration:none;cursor:pointer}
 
 .ao-leads .scorewrap{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
 .ao-leads .scoreval{font-weight:500;font-variant-numeric:tabular-nums}
@@ -85,6 +91,11 @@
 .ao-leads .more-r{display:flex;align-items:center;gap:8px}
 .ao-leads .more-r .qty{width:56px;height:34px;text-align:center;border:.5px solid var(--color-border-secondary,#d8d6cf);border-radius:8px;background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a1a);font:inherit;font-size:13px}
 .ao-leads .more-r .srcbtn{display:inline-flex;align-items:center;gap:6px;background:transparent;color:var(--color-text-info,#185fa5);border:.5px solid var(--color-border-info,#85b7eb);border-radius:8px;padding:9px 14px;font-size:13px;font-weight:500;cursor:pointer}
+
+/* AJOUT (correctif #2, optionnel) : si la liste consolidée devient longue, garder le
+   tableau lisible sans casser l'enroll bar. Le renderer doit envelopper <table> dans
+   <div class="tablewrap">…</div> pour que ce scroll s'applique. */
+.ao-leads .tablewrap{max-height:520px;overflow-y:auto}
 
 /* no-JS: hide interactive-only affordances until the script enhances */
 .ao-leads:not(.js) .reload,.ao-leads:not(.js) .x,.ao-leads:not(.js) .enroll-r,.ao-leads:not(.js) .more-r{display:none}
