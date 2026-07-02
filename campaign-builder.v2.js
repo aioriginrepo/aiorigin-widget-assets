@@ -14,7 +14,7 @@
 
   var inh = ctx.inherited || {};
   function iv(k) { return (inh[k] && inh[k].value) ? String(inh[k].value) : ""; }
-  var DEFAULT_ICP = iv("icp_description") || "B2B SaaS & digital-first brands that want to be cited by AI engines (ChatGPT, Perplexity, Claude, Gemini). Exclude SEO/GEO agencies, consultants and SEO/AEO tool vendors.";
+  var DEFAULT_ICP = "";
   var DEFAULT_ANGLE = iv("angle") || "Open with a real AI-engine query run this morning showing the brand is absent; quantify who outranked them; offer the prompt-by-prompt breakdown.";
   var DEFAULT_VOICE = iv("voice_description") || "";
 
@@ -67,7 +67,7 @@
     geo: [], personas: [], segments: [], signals: [],
     objective: iv("objective") || "Booker un call de 30 min",
     angle: DEFAULT_ANGLE, voice: "workspace", voiceText: DEFAULT_VOICE, baseModelId: "", templateId: "",
-    leads: "source", vol: 20, icp: DEFAULT_ICP, channel: "email", steps: defSteps()
+    leads: "source", vol: 20, icp: DEFAULT_ICP, channel: "email", steps: defSteps(), sizeMin: "", sizeMax: ""
   };
 
   function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
@@ -111,7 +111,7 @@
         '<div class="row" style="margin-top:8px">' + personasAll.map(function (p) { return '<button class="chip add" data-sugg="personas" data-val="' + esc(p) + '">+ ' + esc(p) + "</button>"; }).join("") + '</div>' +
         '<label class="lbl">Segment <span class="mini">(optionnel, libre ; clique × pour retirer)</span></label><div class="row">' + tags("segments") + '</div>' +
         '<div class="addrow"><input data-add="segments" placeholder="ex. Scale-up financé, ETI industrielle…"><button class="btn" data-addbtn="segments">Ajouter</button></div>' +
-        '<div class="row" style="margin-top:8px">' + segAll.map(function (s) { return '<button class="chip add" data-sugg="segments" data-val="' + esc(s) + '">+ ' + esc(s) + "</button>"; }).join("") + '</div>'; } },
+        '<div class="row" style="margin-top:8px">' + segAll.map(function (s) { return '<button class="chip add" data-sugg="segments" data-val="' + esc(s) + '">+ ' + esc(s) + "</button>"; }).join("") + '</div>' + '<label class="lbl">Taille d\'entreprise <span class="mini">(optionnel ; nombre d\'employés)</span></label><div class="row"><input type="number" min="0" inputmode="numeric" data-txt="sizeMin" placeholder="Min. employés" value="' + esc(S.sizeMin) + '" style="flex:1"><input type="number" min="0" inputmode="numeric" data-txt="sizeMax" placeholder="Max. employés" value="' + esc(S.sizeMax) + '" style="flex:1"></div>'; } },
     { id: "angle", icon: "ti-bulb", title: "Angle & signaux", req: true,
       sum: function () { return (S.signals.length ? S.signals.length + " signal(s)" : "cold") + " · angle " + (S.angle.trim() ? "défini" : "vide"); },
       status: function () { return S.angle.trim() ? "ok" : "todo"; },
@@ -194,6 +194,7 @@
     if (cfg.icp_description) S.icp = cfg.icp_description;
     if (cfg.persona) { S.personas = []; cfg.persona.split(/[,;]/).forEach(function (x) { x = x.trim(); if (x) S.personas.push(x); }); }
     if (cfg.geo) { S.geo = Array.isArray(cfg.geo) ? cfg.geo.slice() : String(cfg.geo).split(/[,;]/).map(function (x) { return x.trim(); }).filter(Boolean); }
+    if (cfg.company_size) { S.sizeMin = (cfg.company_size.employees_min != null ? String(cfg.company_size.employees_min) : ""); S.sizeMax = (cfg.company_size.employees_max != null ? String(cfg.company_size.employees_max) : ""); }
     if (cfg.signal_type_key) S.signals = [cfg.signal_type_key];
     if (cfg.steps && cfg.steps.length) {
       S.steps = cfg.steps.map(function (s, i) { var role = mapRole(s.role); role = ROLE_ALL.indexOf(role) >= 0 ? role : "value"; var ch = /^linkedin/.test(s.channel || "") ? "linkedin" : (s.channel || channelForRole(role)); return { role: role, delay: i === 0 ? 0 : (s.delay_days != null ? s.delay_days : DELAY), channel: ch }; });
@@ -276,6 +277,7 @@
     L.push("");
     L.push("Étape 2 — CAMPAGNE : campaign_create (name + angle + persona + steps selon la cadence — chaque étape porte son canal (email/linkedin) + son action + son délai, lead_ids). La maquette héritera de cette séquence ; le contenu de chaque étape (email ou message/action LinkedIn) y sera rédigé." + (S.baseModelId ? " Passe base_model_id." : (S.templateId ? " Repars du template." : "")));
     L.push("Étape 3 — set_campaign_config sur le DRAFT : objective, angle, persona, icp_description" + (S.signals.length ? (", signal_type_key=" + S.signals[0]) : "") + (S.channel !== "email" ? (", channel_mode=" + S.channel + " (séquence " + presetName() + ")") : "") + (S.voiceText.trim() ? ", voice_description (override)" : "") + ".");
+    if (S.sizeMin !== "" || S.sizeMax !== "") L.push("  → Taille d'entreprise : passe company_size={employees_min:" + (S.sizeMin !== "" ? S.sizeMin : "null") + ", employees_max:" + (S.sizeMax !== "" ? S.sizeMax : "null") + "} à campaign_create ET set_campaign_config.");
     L.push("Étape 4 — montre-moi la maquette éditable sur le meilleur lead, fais-la valider, puis lance.");
     send(L.join("\n"));
     var b = root.querySelector("#w-create"); var prev = b.textContent; b.textContent = "Campagne envoyée ✓"; b.disabled = true; setTimeout(function () { b.textContent = prev; b.disabled = false; }, 2000);
