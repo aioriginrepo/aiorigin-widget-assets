@@ -101,7 +101,7 @@
         return '<label class="lbl">Nom de la campagne</label><input data-txt="name" value="' + esc(S.name || autoName()) + '"><label class="lbl">Objectif du meeting</label><div class="row" style="margin-bottom:6px">' + objChips.map(function (o) { return '<button class="chip' + (S.objective === o ? " on" : "") + '" data-obj="' + esc(o) + '">' + esc(o) + "</button>"; }).join("") + '</div><input data-txt="objective" value="' + esc(S.objective) + '"><label class="lbl">Langue d\'envoi</label><div class="row">' + chip("lang", [["en", "English"], ["fr", "Français"]]) + "</div>" + t; } },
     { id: "cible", icon: "ti-target", title: "Cible", req: true,
       sum: function () { return (S.geo.join(", ") || "—") + " · " + (S.personas.join(", ") || "—"); },
-      status: function () { return (S.geo.length && S.personas.length) ? "ok" : "todo"; },
+      status: function () { return (S.geo.length || S.personas.length) ? "ok" : "todo"; },
       body: function () { return '' +
         '<label class="lbl">Géographie <span class="mini">(tape n\'importe quel pays / ville / région)</span></label><div class="row">' + tags("geo") + '</div>' +
         '<div class="addrow"><input data-add="geo" placeholder="ex. London, Île-de-France, Benelux…"><button class="btn" data-addbtn="geo">Ajouter</button></div>' +
