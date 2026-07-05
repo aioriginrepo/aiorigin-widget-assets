@@ -1,7 +1,9 @@
 /* =========================================================================
  * campaign-builder.v2.css — AIOrigin « new campaign » cockpit (ACCORDION)
- * Published copy for github.com/aioriginrepo/aiorigin-widget-assets@cb-v2
+ * Published copy for github.com/aioriginrepo/aiorigin-widget-assets@main
  * Root: .ao-cb (#ao-campaign). Themed via host CSS vars with fallbacks.
+ * v2.1 (2026-07-05): + .prose (persona hérité), .tplnote (squelette modèle),
+ * .chkrow (toggle A/B), .cs (taille d'entreprise).
  * ========================================================================= */
 
 .ao-cb{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Inter,sans-serif;font-size:13px;line-height:1.45;color:var(--color-text-primary,#1a1a1a);max-width:760px;}
@@ -54,6 +56,16 @@
 .ao-cb .step .ix{width:46px;font-size:11px;color:var(--color-text-tertiary,#9a988f);}
 .ao-cb .step select{width:auto;flex:1;}
 .ao-cb .step .dl{width:74px;}
+
+/* v2.1 — persona hérité (prose) affiché sans le fragmenter en chips */
+.ao-cb .prose{font-size:12px;color:var(--color-text-secondary,#6b7280);background:var(--color-background-secondary,#f5f4f0);border:0.5px solid var(--color-border-tertiary,#e6e4df);border-radius:8px;padding:8px 10px;margin-bottom:8px;}
+/* v2.1 — bannière squelette repris d'un modèle de séquence */
+.ao-cb .tplnote{font-size:12.5px;background:color-mix(in srgb,var(--color-text-link,#2563eb) 8%,transparent);border:0.5px solid color-mix(in srgb,var(--color-text-link,#2563eb) 30%,transparent);border-radius:8px;padding:10px 12px;margin-top:10px;}
+/* v2.1 — ligne checkbox (toggle A/B) */
+.ao-cb .chkrow{display:flex;gap:8px;align-items:center;cursor:pointer;}
+.ao-cb .chkrow input{width:auto;margin:0;}
+/* v2.1 — inputs taille d'entreprise */
+.ao-cb .cs{width:90px;}
 
 .ao-cb .create{margin-top:6px;background:var(--color-text-primary,#1a1a1a);color:var(--color-background-primary,#fff);border:0;border-radius:8px;padding:11px 20px;font-size:14px;font-weight:500;cursor:pointer;width:100%;}
 .ao-cb .create:hover{filter:brightness(1.08);}
