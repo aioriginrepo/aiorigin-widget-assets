@@ -18,6 +18,13 @@
  *  - Voix : un « Modèle IA » applique son extrait de voix (m.voice) au textarea
  *    si le backend le fournit (sinon comportement inchangé).
  *
+ * v2.4 (2026-07-06) — retours opérateur (3e passe) :
+ *  - A/B : on définit les DEUX angles dans le formulaire (Angle A / Angle B).
+ *    B vide = l'agent propose une 2e variante distincte à la création.
+ *  - Brief ICP du sourcing : SUPPRIMÉ de Leads. Remplacé par « Instructions
+ *    libres pour le sourcing (optionnel) » en bas de Cible — le ciblage vit à
+ *    un seul endroit ; l'ICP workspace hérité s'applique automatiquement.
+ *
  * v2.3 (2026-07-05) — retours opérateur (2e passe) :
  *  - A/B : reformulation « au clic sur Créer la campagne » (on est déjà dans
  *    le formulaire de création, "à la création" était ambigu).
@@ -134,9 +141,9 @@
     csMin: CS && CS.employees_min != null ? String(CS.employees_min) : "",
     csMax: CS && CS.employees_max != null ? String(CS.employees_max) : "",
     objective: iv("objective") || "Booker un call de 30 min",
-    angle: DEFAULT_ANGLE, ab: false, voicePreview: "", icpOpen: false,
+    angle: DEFAULT_ANGLE, angleB: "", ab: false, voicePreview: "",
     voice: "workspace", voiceText: DEFAULT_VOICE, baseModelId: "", templateId: "",
-    leads: "source", vol: 20, icp: DEFAULT_ICP, channel: "email", steps: defSteps()
+    leads: "source", vol: 20, icpNote: "", channel: "email", steps: defSteps()
   };
 
   function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
@@ -186,13 +193,14 @@
         '<div class="row"><input class="cs" data-num="csMin" type="number" min="1" placeholder="min" value="' + esc(S.csMin) + '"><span class="mini">à</span><input class="cs" data-num="csMax" type="number" min="1" placeholder="max" value="' + esc(S.csMax) + '"></div>' +
         '<label class="lbl">Segment <span class="mini">(optionnel, libre ; clique × pour retirer)</span></label><div class="row">' + tags("segments") + '</div>' +
         '<div class="addrow"><input data-add="segments" placeholder="ex. Scale-up financé, ETI industrielle…"><button class="btn" data-addbtn="segments">Ajouter</button></div>' +
-        '<div class="row" style="margin-top:8px">' + segAll.map(function (s) { return '<button class="chip add" data-sugg="segments" data-val="' + esc(s) + '">+ ' + esc(s) + "</button>"; }).join("") + '</div>'; } },
+        '<div class="row" style="margin-top:8px">' + segAll.map(function (s) { return '<button class="chip add" data-sugg="segments" data-val="' + esc(s) + '">+ ' + esc(s) + "</button>"; }).join("") + '</div>' +
+        '<label class="lbl">Instructions libres pour le sourcing <span class="mini">(optionnel — exclusions, critères qualitatifs… L\'ICP du workspace s\'applique automatiquement.)</span></label><textarea data-txt="icpNote" rows="2" placeholder="ex. Éviter les agences et consultants ; privilégier les entreprises avec du contenu récent.">' + esc(S.icpNote) + '</textarea>'; } },
     { id: "angle", icon: "ti-bulb", title: "Angle & signaux", req: true,
-      sum: function () { return (S.signals.length ? ("principal : " + (sigType(S.signals[0]) ? sigType(S.signals[0]).name : S.signals[0]) + (S.signals.length > 1 ? " (+" + (S.signals.length - 1) + ")" : "")) : "cold") + " · angle " + (S.angle.trim() ? "défini" : "vide") + (S.ab ? " · A/B" : ""); },
+      sum: function () { return (S.signals.length ? ("principal : " + (sigType(S.signals[0]) ? sigType(S.signals[0]).name : S.signals[0]) + (S.signals.length > 1 ? " (+" + (S.signals.length - 1) + ")" : "")) : "cold") + " · angle " + (S.angle.trim() ? "défini" : "vide") + (S.ab ? " · A/B (2 angles)" : ""); },
       status: function () { return S.angle.trim() ? "ok" : "todo"; },
-      body: function () { return '<label class="lbl">Signal(s) d\'origine <span class="mini">(le 1er coché = signal principal, enregistré sur la campagne ; les autres orientent le sourcing · ne déclenche aucune veille automatique)</span></label><div class="row">' + multi("signals", signalTypes.map(function (t) { return [t.key, t.name]; })) + '</div><label class="lbl">Angle d\'accroche</label><textarea data-txt="angle" rows="3" placeholder="ex. Ouvrir sur un fait précis observé chez le prospect, quantifier l\'enjeu, proposer un livrable concret.">' + esc(S.angle) + '</textarea>' +
-        '<label class="lbl chkrow"><input type="checkbox" data-ab="1"' + (S.ab ? " checked" : "") + '> Générer 2 variantes d\'angle (test A/B — stats poolées)</label>' +
-        (S.ab ? '<div class="mini" style="margin-top:4px">✓ Au clic sur « Créer la campagne » : 2 angles distincts seront rédigés et enregistrés (campaign_variants_set) ; leurs performances se comparent en stats poolées (variant_stats). Rien d\'autre à configurer ici.</div>' : ''); } },
+      body: function () { return '<label class="lbl">Signal(s) d\'origine <span class="mini">(le 1er coché = signal principal, enregistré sur la campagne ; les autres orientent le sourcing · ne déclenche aucune veille automatique)</span></label><div class="row">' + multi("signals", signalTypes.map(function (t) { return [t.key, t.name]; })) + '</div><label class="lbl">' + (S.ab ? "Angle A" : "Angle d\'accroche") + '</label><textarea data-txt="angle" rows="3" placeholder="ex. Ouvrir sur un fait précis observé chez le prospect, quantifier l\'enjeu, proposer un livrable concret.">' + esc(S.angle) + '</textarea>' +
+        '<label class="lbl chkrow"><input type="checkbox" data-ab="1"' + (S.ab ? " checked" : "") + '> Tester 2 angles (A/B — stats poolées)</label>' +
+        (S.ab ? '<label class="lbl">Angle B <span class="mini">(laisse vide → une 2e variante distincte sera proposée)</span></label><textarea data-txt="angleB" rows="3" placeholder="Deuxième angle à tester contre l\'angle A.">' + esc(S.angleB) + '</textarea><div class="mini" style="margin-top:4px">Les 2 angles seront testés en parallèle sur la campagne ; performances comparées en stats poolées (variant_stats).</div>' : ''); } },
     { id: "voix", icon: "ti-microphone", title: "Voix",
       sum: function () { return S.voice === "workspace" ? "voix du workspace" : "modèle IA sélectionné"; },
       status: function () { return "opt"; },
@@ -232,15 +240,8 @@
       sum: function () { return S.leads === "source" ? (S.vol + " leads à sourcer") : "sélection existante"; },
       status: function () { return "ok"; },
       body: function () {
-        // v2.3 — the free-text ICP brief is ADVANCED: hidden by default; by
-        // default sourcing = inherited workspace ICP + the Cible filters above.
-        var icpBlock;
-        if (S.icpOpen) {
-          icpBlock = '<label class="lbl">Brief ICP du sourcing <span class="mini">(pré-rempli avec l\'ICP hérité du workspace — modifie pour affiner CETTE campagne uniquement)</span></label><textarea data-txt="icp" rows="3" placeholder="Vide = l\'ICP hérité du workspace s\'applique tel quel.">' + esc(S.icp) + '</textarea><div class="row" style="margin-top:6px"><button class="btn" data-icptoggle="1">Masquer (l\'affinage reste pris en compte)</button></div>';
-        } else {
-          icpBlock = '<div class="mini" style="margin-top:10px">Le sourcing utilisera l\'ICP du workspace (hérité) + les filtres de la section Cible (géo, personas, taille, segments).</div><div class="row" style="margin-top:6px"><button class="btn" data-icptoggle="1">Affiner le brief ICP (avancé)</button></div>';
-        }
-        return '<div class="row">' + chip("leads", [["source", "Sourcer (ICP)"], ["enroll", "Enrôler une sélection"]]) + "</div>" + (S.leads === "source" ? '<label class="lbl">Nombre de leads</label><div class="row"><button class="btn" data-vol="-5">−</button><span id="w-vol" style="min-width:34px;text-align:center;font-weight:500">' + S.vol + '</span><button class="btn" data-vol="5">+</button></div>' + icpBlock : '<div class="mini" style="margin-top:8px">Tu préciseras les lead_ids à enrôler. Aucun sourcing lancé.</div>'); } }
+        // v2.4 — targeting lives in Cible only; Leads = mode + volume.
+        return '<div class="row">' + chip("leads", [["source", "Sourcer (ICP)"], ["enroll", "Enrôler une sélection"]]) + "</div>" + (S.leads === "source" ? '<label class="lbl">Nombre de leads</label><div class="row"><button class="btn" data-vol="-5">−</button><span id="w-vol" style="min-width:34px;text-align:center;font-weight:500">' + S.vol + '</span><button class="btn" data-vol="5">+</button></div><div class="mini" style="margin-top:8px">Le sourcing utilise l\'ICP du workspace (hérité) + la section Cible.</div>' : '<div class="mini" style="margin-top:8px">Tu préciseras les lead_ids à enrôler. Aucun sourcing lancé.</div>'); } }
   ];
 
   var openId = "essentiel"; // v2.2 — auto-advance removed (operator feedback: sections closed mid-editing)
@@ -290,7 +291,7 @@
     if (cfg.language) S.lang = cfg.language === "fr" ? "fr" : "en";
     if (cfg.objective) S.objective = cfg.objective;
     if (cfg.angle) { S.angle = cfg.angle; S.angleEdited = true; }
-    if (cfg.icp_description) { S.icp = cfg.icp_description; S.icpOpen = true; }
+    if (cfg.icp_description) S.icpNote = cfg.icp_description;
     if (cfg.persona) {
       var pv = parsePersona(cfg.persona);
       if (pv.mode === "chips") { S.personas = pv.items.slice(); S.personaFree = ""; }
@@ -326,7 +327,6 @@
     root.querySelectorAll("[data-add]").forEach(function (inp) { inp.onkeydown = function (e) { if (e.key === "Enter") { e.preventDefault(); var f = this.getAttribute("data-add"); var v = (this.value || "").trim(); if (v && S[f].indexOf(v) < 0) S[f].push(v); rebuild(); } }; });
     root.querySelectorAll("[data-num]").forEach(function (inp) { inp.oninput = function () { S[this.getAttribute("data-num")] = this.value; meta(); }; });
     root.querySelectorAll("[data-ab]").forEach(function (inp) { inp.onchange = function () { S.ab = !!this.checked; rebuild(); }; });
-    root.querySelectorAll("[data-icptoggle]").forEach(function (b) { b.onclick = function () { S.icpOpen = !S.icpOpen; rebuild(); }; });
     root.querySelectorAll("[data-tpldetach]").forEach(function (b) { b.onclick = function () { S.templateId = ""; rebuild(); }; });
     root.querySelectorAll("[data-sel]").forEach(function (s) { s.onchange = function () {
       var f = this.getAttribute("data-sel");
@@ -378,8 +378,8 @@
     if (S.segments.length) L.push("- Segment(s) : " + S.segments.join(", "));
     L.push("- Objectif du meeting : " + S.objective);
     L.push("- Signal(s) d'origine : " + (sigList.length ? (sigList.join(", ") + " — le 1er est le signal principal") : "aucun (cold / ICP)"));
-    L.push("- Angle : " + S.angle.trim());
-    if (S.ab) L.push("- Test A/B : génère 2 variantes d'angle distinctes.");
+    L.push("- Angle" + (S.ab ? " A" : "") + " : " + S.angle.trim());
+    if (S.ab) L.push("- Test A/B — Angle B : " + (S.angleB.trim() || "(non fourni — propose une 2e variante DISTINCTE de l'angle A)"));
     L.push("- Voix : " + voiceLine + (S.voiceText.trim() ? (" — override : " + S.voiceText.trim()) : ""));
     if (S.baseModelId) L.push("  → campaign_create base_model_id=" + S.baseModelId + " (generation_mode=claude_authored).");
     var chanLabel = S.channel === "email" ? "email" : (S.channel === "mixed" ? "mixte (email + LinkedIn)" : "LinkedIn");
@@ -388,7 +388,7 @@
     L.push("");
     if (S.leads === "source") {
       L.push("Étape 1 — SOURCING : discover_qualified_leads (recherche web + preuves) pour ~" + S.vol + " leads QUALIFIED.");
-      L.push("  Brief ICP : " + (S.icp.trim() || "utilise l'ICP hérité du workspace (icp_description résolue) tel quel"));
+      L.push("  Brief ICP : ICP hérité du workspace (icp_description résolue)" + (S.icpNote.trim() ? " — instructions complémentaires : " + S.icpNote.trim() : ""));
       L.push("  Filtre géo : " + (S.geo.join(", ") || "large") + " · personas : " + (S.personas.join(", ") || "large") + (cs ? (" · taille : " + cs) : "") + (S.segments.length ? (" · segment : " + S.segments.join(", ")) : ""));
       if (S.signals.length) L.push("  Oriente le sourcing sur : " + S.signals.join(", ") + ".");
       L.push("  Récupère les lead_ids.");
@@ -396,7 +396,7 @@
     L.push("");
     L.push("Étape 2 — CAMPAGNE : campaign_create (name + angle + persona + " + (tpl ? ("template_id=" + S.templateId + " pour les étapes") : "steps selon la cadence — chaque étape porte son canal (email/linkedin) + son action + son délai") + ", lead_ids). La maquette héritera de cette séquence ; le contenu de chaque étape y sera rédigé." + (S.baseModelId ? " Passe base_model_id." : ""));
     L.push("Étape 3 — set_campaign_config sur le DRAFT : objective, angle, persona, icp_description" + (S.signals.length ? (", signal_type_key=" + S.signals[0] + (S.signals.length > 1 ? " (+ signal_type_keys=" + S.signals.join("|") + " pour enrichir)" : "")) : "") + (cs ? ", company_size (" + cs + ")" : "") + (!tpl && S.channel !== "email" ? (", channel_mode=" + S.channel + " (séquence " + presetName() + ")") : "") + (S.voiceText.trim() ? ", voice_description (override)" : "") + ".");
-    if (S.ab) L.push("Étape 3bis — VARIANTES : génère 2 variantes d'angle et enregistre-les via campaign_variants_set ; les performances se liront poolées via variant_stats.");
+    if (S.ab) L.push("Étape 3bis — VARIANTES : enregistre les 2 angles comme variantes via campaign_variants_set (A = l'angle ci-dessus" + (S.angleB.trim() ? ", B = celui fourni" : ", B = ta proposition, à me faire valider") + ") ; les performances se liront poolées via variant_stats.");
     L.push("Étape 4 — montre-moi la maquette éditable sur le meilleur lead, fais-la valider, puis lance.");
     send(L.join("\n"));
     var b = root.querySelector("#w-create"); var prev = b.textContent; b.textContent = "Campagne envoyée ✓"; b.disabled = true; setTimeout(function () { b.textContent = prev; b.disabled = false; }, 2000);
