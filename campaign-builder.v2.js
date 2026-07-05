@@ -18,6 +18,15 @@
  *  - Voix : un « Modèle IA » applique son extrait de voix (m.voice) au textarea
  *    si le backend le fournit (sinon comportement inchangé).
  *
+ * v2.3 (2026-07-05) — retours opérateur (2e passe) :
+ *  - A/B : reformulation « au clic sur Créer la campagne » (on est déjà dans
+ *    le formulaire de création, "à la création" était ambigu).
+ *  - Voix : l'extrait d'un Modèle IA s'affiche en APERÇU lecture seule (tronqué,
+ *    avec « … ») au lieu d'être injecté dans le textarea d'override — un email
+ *    exemple brut y était illisible et partait en consigne de voix.
+ *  - Brief ICP du sourcing : replié derrière « Affiner (avancé) » ; par défaut
+ *    une phrase explique que le sourcing = ICP workspace hérité + filtres Cible.
+ *
  * v2.2 (2026-07-05) — retours opérateur :
  *  - Plus d'auto-advance sur les ajouts de chips (géo/personas/segments/signaux) :
  *    la section reste ouverte pour des ajouts multiples. On navigue via les
@@ -125,7 +134,7 @@
     csMin: CS && CS.employees_min != null ? String(CS.employees_min) : "",
     csMax: CS && CS.employees_max != null ? String(CS.employees_max) : "",
     objective: iv("objective") || "Booker un call de 30 min",
-    angle: DEFAULT_ANGLE, ab: false,
+    angle: DEFAULT_ANGLE, ab: false, voicePreview: "", icpOpen: false,
     voice: "workspace", voiceText: DEFAULT_VOICE, baseModelId: "", templateId: "",
     leads: "source", vol: 20, icp: DEFAULT_ICP, channel: "email", steps: defSteps()
   };
@@ -183,13 +192,20 @@
       status: function () { return S.angle.trim() ? "ok" : "todo"; },
       body: function () { return '<label class="lbl">Signal(s) d\'origine <span class="mini">(le 1er coché = signal principal, enregistré sur la campagne ; les autres orientent le sourcing · ne déclenche aucune veille automatique)</span></label><div class="row">' + multi("signals", signalTypes.map(function (t) { return [t.key, t.name]; })) + '</div><label class="lbl">Angle d\'accroche</label><textarea data-txt="angle" rows="3" placeholder="ex. Ouvrir sur un fait précis observé chez le prospect, quantifier l\'enjeu, proposer un livrable concret.">' + esc(S.angle) + '</textarea>' +
         '<label class="lbl chkrow"><input type="checkbox" data-ab="1"' + (S.ab ? " checked" : "") + '> Générer 2 variantes d\'angle (test A/B — stats poolées)</label>' +
-        (S.ab ? '<div class="mini" style="margin-top:4px">✓ À la création : 2 angles distincts seront rédigés et enregistrés (campaign_variants_set) ; leurs performances se comparent en stats poolées (variant_stats). Rien d\'autre à configurer ici.</div>' : ''); } },
+        (S.ab ? '<div class="mini" style="margin-top:4px">✓ Au clic sur « Créer la campagne » : 2 angles distincts seront rédigés et enregistrés (campaign_variants_set) ; leurs performances se comparent en stats poolées (variant_stats). Rien d\'autre à configurer ici.</div>' : ''); } },
     { id: "voix", icon: "ti-microphone", title: "Voix",
       sum: function () { return S.voice === "workspace" ? "voix du workspace" : "modèle IA sélectionné"; },
       status: function () { return "opt"; },
       body: function () { var opts = '<option value="workspace"' + (S.voice === "workspace" ? " selected" : "") + ">Voix du workspace (héritée)</option>";
         authored.forEach(function (m) { opts += '<option value="model:' + esc(m.id) + '"' + (S.voice === "model:" + m.id ? " selected" : "") + ">Modèle IA — " + esc(m.name) + "</option>"; });
-        return '<label class="lbl">Source de la voix <span class="mini">(le ton — le squelette d\'étapes se choisit dans Cadence)</span></label><select data-sel="voice">' + opts + '</select><textarea data-txt="voiceText" rows="2" style="margin-top:8px" placeholder="Voix appliquée (héritée par défaut) — édite pour affiner.">' + esc(S.voiceText) + '</textarea>'; } },
+        // v2.3 — l'extrait du modèle est un APERÇU lecture seule (tronqué), pas un override.
+        var preview = "";
+        if (S.voicePreview) {
+          var pv = String(S.voicePreview).replace(/\s+/g, " ").trim();
+          if (pv.length > 400) pv = pv.slice(0, 400) + "…";
+          preview = '<div class="prose" style="margin-top:8px"><span class="mini">Aperçu du ton de ce modèle (lecture seule) :</span><br>« ' + esc(pv) + ' »</div>';
+        }
+        return '<label class="lbl">Source de la voix <span class="mini">(le ton — le squelette d\'étapes se choisit dans Cadence)</span></label><select data-sel="voice">' + opts + '</select>' + preview + '<textarea data-txt="voiceText" rows="2" style="margin-top:8px" placeholder="' + (S.voice === "workspace" ? "Voix appliquée (héritée par défaut) — édite pour affiner." : "Consigne de voix supplémentaire (optionnel) — vide = le ton du modèle s\'applique tel quel.") + '">' + esc(S.voiceText) + '</textarea>'; } },
     { id: "cadence", icon: "ti-timeline-event", title: "Cadence", req: true,
       sum: function () { var t = S.templateId ? tplById(S.templateId) : null; return t ? ("modèle « " + t.name + " »") : (presetName() + " · " + S.steps.length + " étapes" + (S.channel !== "email" ? " · " + (S.channel === "mixed" ? "mixte" : "LinkedIn") : "") + " · ~J+" + cadDays()); },
       status: function () { return "ok"; },
@@ -215,7 +231,16 @@
     { id: "leads", icon: "ti-users", title: "Leads", req: true,
       sum: function () { return S.leads === "source" ? (S.vol + " leads à sourcer") : "sélection existante"; },
       status: function () { return "ok"; },
-      body: function () { return '<div class="row">' + chip("leads", [["source", "Sourcer (ICP)"], ["enroll", "Enrôler une sélection"]]) + "</div>" + (S.leads === "source" ? '<label class="lbl">Nombre de leads</label><div class="row"><button class="btn" data-vol="-5">−</button><span id="w-vol" style="min-width:34px;text-align:center;font-weight:500">' + S.vol + '</span><button class="btn" data-vol="5">+</button></div><label class="lbl">Brief ICP du sourcing <span class="mini">(hérité de l\'ICP workspace — affine pour cette campagne si besoin)</span></label><textarea data-txt="icp" rows="2" placeholder="Vide = l\'ICP hérité du workspace s\'applique tel quel.">' + esc(S.icp) + "</textarea>" : '<div class="mini" style="margin-top:8px">Tu préciseras les lead_ids à enrôler. Aucun sourcing lancé.</div>'); } }
+      body: function () {
+        // v2.3 — the free-text ICP brief is ADVANCED: hidden by default; by
+        // default sourcing = inherited workspace ICP + the Cible filters above.
+        var icpBlock;
+        if (S.icpOpen) {
+          icpBlock = '<label class="lbl">Brief ICP du sourcing <span class="mini">(pré-rempli avec l\'ICP hérité du workspace — modifie pour affiner CETTE campagne uniquement)</span></label><textarea data-txt="icp" rows="3" placeholder="Vide = l\'ICP hérité du workspace s\'applique tel quel.">' + esc(S.icp) + '</textarea><div class="row" style="margin-top:6px"><button class="btn" data-icptoggle="1">Masquer (l\'affinage reste pris en compte)</button></div>';
+        } else {
+          icpBlock = '<div class="mini" style="margin-top:10px">Le sourcing utilisera l\'ICP du workspace (hérité) + les filtres de la section Cible (géo, personas, taille, segments).</div><div class="row" style="margin-top:6px"><button class="btn" data-icptoggle="1">Affiner le brief ICP (avancé)</button></div>';
+        }
+        return '<div class="row">' + chip("leads", [["source", "Sourcer (ICP)"], ["enroll", "Enrôler une sélection"]]) + "</div>" + (S.leads === "source" ? '<label class="lbl">Nombre de leads</label><div class="row"><button class="btn" data-vol="-5">−</button><span id="w-vol" style="min-width:34px;text-align:center;font-weight:500">' + S.vol + '</span><button class="btn" data-vol="5">+</button></div>' + icpBlock : '<div class="mini" style="margin-top:8px">Tu préciseras les lead_ids à enrôler. Aucun sourcing lancé.</div>'); } }
   ];
 
   var openId = "essentiel"; // v2.2 — auto-advance removed (operator feedback: sections closed mid-editing)
@@ -245,12 +270,16 @@
     var cs = root.querySelector("#cad-sum"); if (cs) cs.textContent = S.steps.length + " étapes · dernier contact ~J+" + cadDays();
   }
   function applyVoice(v) {
-    S.voice = v; S.baseModelId = "";
+    S.voice = v; S.baseModelId = ""; S.voicePreview = "";
     if (v.indexOf("model:") === 0) {
       S.baseModelId = v.slice(6);
       var m = authored.find(function (x) { return "model:" + x.id === v; });
       if (m) {
-        if (m.voice && !S.voiceTextEdited) S.voiceText = String(m.voice); // B7-ready: backend-provided voice excerpt
+        // v2.3 — the model excerpt is shown as a read-only preview, NEVER
+        // injected into the override textarea (a raw sample email there was
+        // unreadable and would have been sent as the voice instruction).
+        if (m.voice) S.voicePreview = String(m.voice);
+        if (!S.voiceTextEdited) S.voiceText = "";
         if (m.meta) { if (m.meta.angle && !S.angleEdited) S.angle = m.meta.angle; if (m.meta.persona && S.personas.indexOf(m.meta.persona) < 0) S.personas.push(m.meta.persona); }
       }
     }
@@ -261,7 +290,7 @@
     if (cfg.language) S.lang = cfg.language === "fr" ? "fr" : "en";
     if (cfg.objective) S.objective = cfg.objective;
     if (cfg.angle) { S.angle = cfg.angle; S.angleEdited = true; }
-    if (cfg.icp_description) S.icp = cfg.icp_description;
+    if (cfg.icp_description) { S.icp = cfg.icp_description; S.icpOpen = true; }
     if (cfg.persona) {
       var pv = parsePersona(cfg.persona);
       if (pv.mode === "chips") { S.personas = pv.items.slice(); S.personaFree = ""; }
@@ -297,6 +326,7 @@
     root.querySelectorAll("[data-add]").forEach(function (inp) { inp.onkeydown = function (e) { if (e.key === "Enter") { e.preventDefault(); var f = this.getAttribute("data-add"); var v = (this.value || "").trim(); if (v && S[f].indexOf(v) < 0) S[f].push(v); rebuild(); } }; });
     root.querySelectorAll("[data-num]").forEach(function (inp) { inp.oninput = function () { S[this.getAttribute("data-num")] = this.value; meta(); }; });
     root.querySelectorAll("[data-ab]").forEach(function (inp) { inp.onchange = function () { S.ab = !!this.checked; rebuild(); }; });
+    root.querySelectorAll("[data-icptoggle]").forEach(function (b) { b.onclick = function () { S.icpOpen = !S.icpOpen; rebuild(); }; });
     root.querySelectorAll("[data-tpldetach]").forEach(function (b) { b.onclick = function () { S.templateId = ""; rebuild(); }; });
     root.querySelectorAll("[data-sel]").forEach(function (s) { s.onchange = function () {
       var f = this.getAttribute("data-sel");
