@@ -18,6 +18,12 @@
  *  - Voix : un « Modèle IA » applique son extrait de voix (m.voice) au textarea
  *    si le backend le fournit (sinon comportement inchangé).
  *
+ * v2.2 (2026-07-05) — retours opérateur :
+ *  - Plus d'auto-advance sur les ajouts de chips (géo/personas/segments/signaux) :
+ *    la section reste ouverte pour des ajouts multiples. On navigue via les
+ *    en-têtes de sections uniquement.
+ *  - Case A/B : ligne de confirmation visible quand cochée (feedback immédiat).
+ *
  * Reads #cb-ctx, renders an accordion (one section open at a time + soft
  * auto-advance), writes nothing. « Créer la campagne » posts one consolidated
  * prompt for the agent to run the campaign_create chain.
@@ -176,7 +182,8 @@
       sum: function () { return (S.signals.length ? ("principal : " + (sigType(S.signals[0]) ? sigType(S.signals[0]).name : S.signals[0]) + (S.signals.length > 1 ? " (+" + (S.signals.length - 1) + ")" : "")) : "cold") + " · angle " + (S.angle.trim() ? "défini" : "vide") + (S.ab ? " · A/B" : ""); },
       status: function () { return S.angle.trim() ? "ok" : "todo"; },
       body: function () { return '<label class="lbl">Signal(s) d\'origine <span class="mini">(le 1er coché = signal principal, enregistré sur la campagne ; les autres orientent le sourcing · ne déclenche aucune veille automatique)</span></label><div class="row">' + multi("signals", signalTypes.map(function (t) { return [t.key, t.name]; })) + '</div><label class="lbl">Angle d\'accroche</label><textarea data-txt="angle" rows="3" placeholder="ex. Ouvrir sur un fait précis observé chez le prospect, quantifier l\'enjeu, proposer un livrable concret.">' + esc(S.angle) + '</textarea>' +
-        '<label class="lbl chkrow"><input type="checkbox" data-ab="1"' + (S.ab ? " checked" : "") + '> Générer 2 variantes d\'angle (test A/B — stats poolées)</label>'; } },
+        '<label class="lbl chkrow"><input type="checkbox" data-ab="1"' + (S.ab ? " checked" : "") + '> Générer 2 variantes d\'angle (test A/B — stats poolées)</label>' +
+        (S.ab ? '<div class="mini" style="margin-top:4px">✓ À la création : 2 angles distincts seront rédigés et enregistrés (campaign_variants_set) ; leurs performances se comparent en stats poolées (variant_stats). Rien d\'autre à configurer ici.</div>' : ''); } },
     { id: "voix", icon: "ti-microphone", title: "Voix",
       sum: function () { return S.voice === "workspace" ? "voix du workspace" : "modèle IA sélectionné"; },
       status: function () { return "opt"; },
@@ -211,13 +218,12 @@
       body: function () { return '<div class="row">' + chip("leads", [["source", "Sourcer (ICP)"], ["enroll", "Enrôler une sélection"]]) + "</div>" + (S.leads === "source" ? '<label class="lbl">Nombre de leads</label><div class="row"><button class="btn" data-vol="-5">−</button><span id="w-vol" style="min-width:34px;text-align:center;font-weight:500">' + S.vol + '</span><button class="btn" data-vol="5">+</button></div><label class="lbl">Brief ICP du sourcing <span class="mini">(hérité de l\'ICP workspace — affine pour cette campagne si besoin)</span></label><textarea data-txt="icp" rows="2" placeholder="Vide = l\'ICP hérité du workspace s\'applique tel quel.">' + esc(S.icp) + "</textarea>" : '<div class="mini" style="margin-top:8px">Tu préciseras les lead_ids à enrôler. Aucun sourcing lancé.</div>'); } }
   ];
 
-  var openId = "essentiel", pendingAdvance = false;
+  var openId = "essentiel"; // v2.2 — auto-advance removed (operator feedback: sections closed mid-editing)
   function pillHtml(st) { var m = { ok: ["ok", "Prêt"], todo: ["todo", "À compléter"], opt: ["opt", "Optionnel"] }[st]; return '<span class="pill ' + m[0] + '">' + m[1] + "</span>"; }
 
   root.innerHTML = '<div class="top"><div class="nm" id="w-nm"></div><div class="rl" id="w-rl"></div><div class="bar"><i id="w-bar"></i></div><div class="barlbl" id="w-barlbl"></div></div><div id="w-acc"></div><button class="create" id="w-create" disabled>Créer la campagne ↗</button><div class="mini" id="w-remain" style="margin-top:6px;text-align:center"></div>';
 
   function rebuild() {
-    if (pendingAdvance) { pendingAdvance = false; var cur = SECTIONS.filter(function (s) { return s.id === openId; })[0]; if (cur && cur.req && cur.status() === "ok") advance(openId); }
     var host = root.querySelector("#w-acc"); host.innerHTML = "";
     SECTIONS.forEach(function (sec) {
       var open = openId === sec.id;
@@ -237,11 +243,6 @@
     var ok = done === req.length; root.querySelector("#w-create").disabled = !ok;
     root.querySelector("#w-remain").textContent = ok ? "Tout est prêt." : ((req.length - done) + " section(s) à compléter");
     var cs = root.querySelector("#cad-sum"); if (cs) cs.textContent = S.steps.length + " étapes · dernier contact ~J+" + cadDays();
-  }
-  // soft auto-advance: after a required section becomes ready, open the next still-todo one
-  function advance(curId) {
-    var idx = SECTIONS.findIndex(function (s) { return s.id === curId; });
-    for (var i = idx + 1; i < SECTIONS.length; i++) { if (SECTIONS[i].req && SECTIONS[i].status() !== "ok") { openId = SECTIONS[i].id; return; } }
   }
   function applyVoice(v) {
     S.voice = v; S.baseModelId = "";
@@ -289,13 +290,13 @@
     root.querySelectorAll("[data-acc]").forEach(function (b) { b.onclick = function () { var id = this.getAttribute("data-acc"); openId = (openId === id ? "" : id); rebuild(); }; });
     root.querySelectorAll("[data-chip]").forEach(function (b) { b.onclick = function () { var f = this.getAttribute("data-chip"); S[f] = this.getAttribute("data-val"); if (f === "channel") normalizeStepsForChannel(); rebuild(); }; });
     root.querySelectorAll("[data-obj]").forEach(function (b) { b.onclick = function () { S.objective = this.getAttribute("data-obj"); rebuild(); }; });
-    root.querySelectorAll("[data-mc]").forEach(function (b) { b.onclick = function () { var f = this.getAttribute("data-mc"), v = this.getAttribute("data-val"); var i = S[f].indexOf(v); if (i >= 0) S[f].splice(i, 1); else S[f].push(v); pendingAdvance = true; rebuild(); }; });
-    root.querySelectorAll("[data-sugg]").forEach(function (b) { b.onclick = function () { var f = this.getAttribute("data-sugg"), v = this.getAttribute("data-val"); if (S[f].indexOf(v) < 0) S[f].push(v); pendingAdvance = true; rebuild(); }; });
+    root.querySelectorAll("[data-mc]").forEach(function (b) { b.onclick = function () { var f = this.getAttribute("data-mc"), v = this.getAttribute("data-val"); var i = S[f].indexOf(v); if (i >= 0) S[f].splice(i, 1); else S[f].push(v); rebuild(); }; });
+    root.querySelectorAll("[data-sugg]").forEach(function (b) { b.onclick = function () { var f = this.getAttribute("data-sugg"), v = this.getAttribute("data-val"); if (S[f].indexOf(v) < 0) S[f].push(v); rebuild(); }; });
     root.querySelectorAll("[data-rm]").forEach(function (b) { b.onclick = function () { S[this.getAttribute("data-rm")].splice(+this.getAttribute("data-i"), 1); rebuild(); }; });
-    root.querySelectorAll("[data-addbtn]").forEach(function (b) { b.onclick = function () { var f = this.getAttribute("data-addbtn"); var inp = root.querySelector('[data-add="' + f + '"]'); var v = (inp.value || "").trim(); if (v && S[f].indexOf(v) < 0) S[f].push(v); pendingAdvance = true; rebuild(); }; });
-    root.querySelectorAll("[data-add]").forEach(function (inp) { inp.onkeydown = function (e) { if (e.key === "Enter") { e.preventDefault(); var f = this.getAttribute("data-add"); var v = (this.value || "").trim(); if (v && S[f].indexOf(v) < 0) S[f].push(v); pendingAdvance = true; rebuild(); } }; });
+    root.querySelectorAll("[data-addbtn]").forEach(function (b) { b.onclick = function () { var f = this.getAttribute("data-addbtn"); var inp = root.querySelector('[data-add="' + f + '"]'); var v = (inp.value || "").trim(); if (v && S[f].indexOf(v) < 0) S[f].push(v); rebuild(); }; });
+    root.querySelectorAll("[data-add]").forEach(function (inp) { inp.onkeydown = function (e) { if (e.key === "Enter") { e.preventDefault(); var f = this.getAttribute("data-add"); var v = (this.value || "").trim(); if (v && S[f].indexOf(v) < 0) S[f].push(v); rebuild(); } }; });
     root.querySelectorAll("[data-num]").forEach(function (inp) { inp.oninput = function () { S[this.getAttribute("data-num")] = this.value; meta(); }; });
-    root.querySelectorAll("[data-ab]").forEach(function (inp) { inp.onchange = function () { S.ab = !!this.checked; meta(); }; });
+    root.querySelectorAll("[data-ab]").forEach(function (inp) { inp.onchange = function () { S.ab = !!this.checked; rebuild(); }; });
     root.querySelectorAll("[data-tpldetach]").forEach(function (b) { b.onclick = function () { S.templateId = ""; rebuild(); }; });
     root.querySelectorAll("[data-sel]").forEach(function (s) { s.onchange = function () {
       var f = this.getAttribute("data-sel");
