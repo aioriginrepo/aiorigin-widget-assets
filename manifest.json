@@ -1,0 +1,16 @@
+{
+  "widgets": {
+    "campaign-builder": {
+      "js": "campaign-builder.78e3194.js",
+      "css": "campaign-builder.f37526b.css"
+    },
+    "qualified-leads": {
+      "js": "qualified-leads.52ab435.js",
+      "css": "qualified-leads.dd7a2d8.css"
+    },
+    "sequence-builder": {
+      "js": "sequence-builder.d8ac656.js",
+      "css": "sequence-builder.ad9fc44.css"
+    }
+  }
+}
