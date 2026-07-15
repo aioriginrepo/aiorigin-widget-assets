@@ -62,7 +62,7 @@
   if (!ROLE_LABELS.connect) ROLE_LABELS.connect = "Invitation";
   if (!ROLE_LABELS.visit) ROLE_LABELS.visit = "Visite profil";
   if (!ROLE_LABELS.message) ROLE_LABELS.message = "Message";
-  var ROLE_ALL = ["opener", "value", "proof", "angle", "bump", "breakup", "connect", "visit", "message", "linkedin_invite", "linkedin_connect", "linkedin_dm", "linkedin_visit", "linkedin_follow", "linkedin_like", "linkedin_comment"];
+  var ROLE_ALL = ["opener", "value", "proof", "angle", "bump", "breakup", "connect", "visit", "message", "linkedin_invite", "linkedin_dm", "linkedin_visit", "linkedin_like", "linkedin_comment"];
   var PRESETS = ctx.presets || { light_3_email: ["opener", "value", "breakup"], founder_led_5: ["opener", "value", "proof", "bump", "breakup"], deep_7: ["opener", "value", "proof", "angle", "value", "bump", "breakup"] };
   var SD = ctx.sequence_defaults || {};
   var DELAY = SD.default_delay_days || 3, MAXST = SD.max_steps || 7;
@@ -73,8 +73,6 @@
   function presetStepRole(r, mode) { if (r === "visit" || r === "connect" || r === "message") return mapRole(r); return mode === "linkedin" ? "linkedin_dm" : r; }
   function presetLabel(k) { return PRESET_LABELS[k] || k.replace(/_/g, " "); }
   function lkChannels() {
-    var la = ctx.linkedin_actions;
-    if (la && la.length) return la.map(function (x) { return { key: x.ui_channel || x.id, label: x.label_fr || x.label || x.id }; });
     var ac = ctx.available_channels;
     if (ac && ac.length) { var lk = ac.filter(function (c) { return (c.channel || "") === "linkedin"; }).map(function (c) { return { key: c.key, label: c.label || c.key }; }); if (lk.length) return lk; }
     var a = ctx.channel_actions && ctx.channel_actions.linkedin;
@@ -90,7 +88,7 @@
   function mapRole(r) { return r === "visit" ? "linkedin_visit" : (r === "connect" ? "linkedin_invite" : (r === "message" ? "linkedin_dm" : r)); }
   function channelForRole(r) { return (/^linkedin/.test(r) || r === "visit" || r === "connect" || r === "message") ? "linkedin" : "email"; }
   function stepChannel(st) { return S.channel === "mixed" ? (st.channel || channelForRole(st.role)) : S.channel; }
-  function labelFor(key) { var la = ctx.linkedin_actions; if (la) { for (var j = 0; j < la.length; j++) if ((la[j].ui_channel || la[j].id) === key) return la[j].label_fr || la[j].label || key; } var ac = ctx.available_channels; if (ac) { for (var i = 0; i < ac.length; i++) if (ac[i].key === key) return ac[i].label || key; } return ROLE_LABELS[key] || key; }
+  function labelFor(key) { var ac = ctx.available_channels; if (ac) { for (var i = 0; i < ac.length; i++) if (ac[i].key === key) return ac[i].label || key; } return ROLE_LABELS[key] || key; }
 
   // v2.1 — only deployable signals when the backend sends `status` (B5-ready).
   var signalTypes = (ctx.signal_types || []).filter(function (t) { return !t.status || t.status === "available"; });
@@ -260,6 +258,19 @@
       host.appendChild(d);
     });
     bind(); meta();
+    try {
+      var pal = document.getElementById('ao-linkedin-palette');
+      if (pal) {
+        var cad = root.querySelector('.acc[data-id="cadence"].open .bd');
+        if (cad) {
+          if (pal.parentNode !== cad) cad.appendChild(pal);
+          pal.style.display = '';
+          pal.style.marginTop = '12px';
+        } else {
+          pal.style.display = 'none';
+        }
+      }
+    } catch (e) {}
   }
   function meta() {
     SECTIONS.forEach(function (sec) { var el = root.querySelector('.acc[data-id="' + sec.id + '"]'); if (!el) return; el.querySelector(".sum").textContent = sec.sum(); el.querySelector(".pillwrap").innerHTML = pillHtml(sec.status()); });
