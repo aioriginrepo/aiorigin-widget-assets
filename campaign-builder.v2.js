@@ -73,11 +73,22 @@
   function presetStepRole(r, mode) { if (r === "visit" || r === "connect" || r === "message") return mapRole(r); return mode === "linkedin" ? "linkedin_dm" : r; }
   function presetLabel(k) { return PRESET_LABELS[k] || k.replace(/_/g, " "); }
   function lkChannels() {
+    // v2.2 — source of truth = ctx.linkedin_actions (full LINKEDIN_ACTION_CATALOG).
+    // Anti-drift rule: if ctx is empty we return an empty list — a shorter
+    // hardcoded fallback (3 items) would silently regress to the old UI.
+    var la = ctx.linkedin_actions;
+    if (la && la.length) return la.map(function (a) {
+      var suffix = "";
+      if (a.needs_copy) suffix += " · message";
+      if (a.beta) suffix += " · bêta";
+      return { key: a.id, label: (a.label_fr || a.id) + suffix };
+    });
+    // Legacy fallbacks (kept for tools that haven't been redeployed yet).
     var ac = ctx.available_channels;
     if (ac && ac.length) { var lk = ac.filter(function (c) { return (c.channel || "") === "linkedin"; }).map(function (c) { return { key: c.key, label: c.label || c.key }; }); if (lk.length) return lk; }
-    var a = ctx.channel_actions && ctx.channel_actions.linkedin;
-    if (a && a.length) return a.map(function (x) { return Array.isArray(x) ? { key: x[0], label: x[1] } : { key: x.key, label: x.label || x.key }; });
-    return [{ key: "linkedin_invite", label: "LinkedIn · Invitation" }, { key: "linkedin_dm", label: "LinkedIn · Message" }, { key: "linkedin_visit", label: "LinkedIn · Visite profil" }];
+    var a2 = ctx.channel_actions && ctx.channel_actions.linkedin;
+    if (a2 && a2.length) return a2.map(function (x) { return Array.isArray(x) ? { key: x[0], label: x[1] } : { key: x.key, label: x.label || x.key }; });
+    return [];
   }
   function actionsFor(channel) {
     if (channel === "linkedin") return lkChannels();
@@ -258,19 +269,6 @@
       host.appendChild(d);
     });
     bind(); meta();
-    try {
-      var pal = document.getElementById('ao-linkedin-palette');
-      if (pal) {
-        var cad = root.querySelector('.acc[data-id="cadence"].open .bd');
-        if (cad) {
-          if (pal.parentNode !== cad) cad.appendChild(pal);
-          pal.style.display = '';
-          pal.style.marginTop = '12px';
-        } else {
-          pal.style.display = 'none';
-        }
-      }
-    } catch (e) {}
   }
   function meta() {
     SECTIONS.forEach(function (sec) { var el = root.querySelector('.acc[data-id="' + sec.id + '"]'); if (!el) return; el.querySelector(".sum").textContent = sec.sum(); el.querySelector(".pillwrap").innerHTML = pillHtml(sec.status()); });
@@ -417,24 +415,7 @@
 
   if (ctx.prefill) { S.start = ctx.prefill.campaign_id || ""; S.cloneName = ctx.prefill.name || ""; S.cloning = ""; applyConfigObj(ctx.prefill.config || {}); }
 
-  // LinkedIn palette chips (SSR-rendered outside #ao-campaign) — one prompt per click.
-  try {
-    document.querySelectorAll('#ao-linkedin-palette [data-linkedin-action]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var id = btn.getAttribute('data-linkedin-action') || '';
-        var label = (btn.querySelector('span:nth-child(2)') || {}).textContent || id;
-        var needsCopy = btn.getAttribute('data-needs-copy') === 'true';
-        var beta = btn.getAttribute('data-beta') === 'true';
-        var msg =
-          'Ajoute une étape LinkedIn « ' + label + ' » (action_id=' + id + ') à la séquence de la campagne en cours de configuration' +
-          (needsCopy ? ' — cette action requiert un message : demande-moi la copie ou propose-en une en respectant la voix du workspace.' : '.') +
-          (beta ? ' (Action en bêta — vérifie l\'éligibilité workspace via linkedin_workspace_config avant d\'activer.)' : '');
-        send(msg);
-        var prev = btn.style.opacity; btn.style.opacity = '0.5';
-        setTimeout(function(){ btn.style.opacity = prev || '1'; }, 800);
-      });
-    });
-  } catch (e) { /* palette optional */ }
+  // v2.2 — palette LinkedIn retirée : les actions vivent dans le <select> de chaque étape (Cadence).
 
   rebuild();
 })();
