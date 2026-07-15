@@ -403,5 +403,25 @@
   }
 
   if (ctx.prefill) { S.start = ctx.prefill.campaign_id || ""; S.cloneName = ctx.prefill.name || ""; S.cloning = ""; applyConfigObj(ctx.prefill.config || {}); }
+
+  // LinkedIn palette chips (SSR-rendered outside #ao-campaign) — one prompt per click.
+  try {
+    document.querySelectorAll('#ao-linkedin-palette [data-linkedin-action]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-linkedin-action') || '';
+        var label = (btn.querySelector('span:nth-child(2)') || {}).textContent || id;
+        var needsCopy = btn.getAttribute('data-needs-copy') === 'true';
+        var beta = btn.getAttribute('data-beta') === 'true';
+        var msg =
+          'Ajoute une étape LinkedIn « ' + label + ' » (action_id=' + id + ') à la séquence de la campagne en cours de configuration' +
+          (needsCopy ? ' — cette action requiert un message : demande-moi la copie ou propose-en une en respectant la voix du workspace.' : '.') +
+          (beta ? ' (Action en bêta — vérifie l\'éligibilité workspace via linkedin_workspace_config avant d\'activer.)' : '');
+        send(msg);
+        var prev = btn.style.opacity; btn.style.opacity = '0.5';
+        setTimeout(function(){ btn.style.opacity = prev || '1'; }, 800);
+      });
+    });
+  } catch (e) { /* palette optional */ }
+
   rebuild();
 })();
