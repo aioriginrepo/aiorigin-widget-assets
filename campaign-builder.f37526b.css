@@ -1,0 +1,76 @@
+/* =========================================================================
+ * campaign-builder.v2.css — AIOrigin « new campaign » cockpit (ACCORDION)
+ * Published copy for github.com/aioriginrepo/aiorigin-widget-assets@main
+ * Root: .ao-cb (#ao-campaign). Themed via host CSS vars with fallbacks.
+ * v2.1 (2026-07-05): + .prose (persona hérité), .tplnote (squelette modèle),
+ * .chkrow (toggle A/B), .cs (taille d'entreprise).
+ * ========================================================================= */
+
+.ao-cb{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Inter,sans-serif;font-size:13px;line-height:1.45;color:var(--color-text-primary,#1a1a1a);max-width:760px;}
+.ao-cb *{box-sizing:border-box}
+
+.ao-cb .top{background:var(--color-background-secondary,#f5f4f0);border:0.5px solid var(--color-border-tertiary,#e6e4df);border-radius:12px;padding:14px 16px;margin-bottom:14px;}
+.ao-cb .nm{font-size:17px;font-weight:500;}
+.ao-cb .rl{font-size:12.5px;color:var(--color-text-secondary,#6b7280);margin-top:3px;}
+.ao-cb .bar{height:6px;border-radius:999px;background:var(--color-border-tertiary,#e6e4df);margin-top:12px;overflow:hidden;}
+.ao-cb .bar>i{display:block;height:100%;background:var(--color-text-success,#1d9e75);width:0;transition:width .25s;}
+.ao-cb .barlbl{font-size:11.5px;color:var(--color-text-secondary,#6b7280);margin-top:6px;}
+
+.ao-cb .acc{border:0.5px solid var(--color-border-tertiary,#e6e4df);border-radius:12px;margin-bottom:8px;background:var(--color-background-primary,#fff);overflow:hidden;}
+.ao-cb .acc.open{border-color:var(--color-border-secondary,#cfcdc4);}
+.ao-cb .hd{display:flex;align-items:center;gap:10px;width:100%;padding:13px 14px;cursor:pointer;background:none;border:0;text-align:left;color:inherit;font:inherit;}
+.ao-cb .hd:hover{background:var(--color-background-secondary,#f5f4f0);}
+.ao-cb .chev{transition:transform .2s;color:var(--color-text-tertiary,#9a988f);font-size:18px;}
+.ao-cb .acc.open .chev{transform:rotate(180deg);}
+.ao-cb .ti-lead{font-size:18px;color:var(--color-text-secondary,#6b7280);}
+.ao-cb .ttl{font-weight:500;font-size:14px;}
+.ao-cb .sum{font-size:12px;color:var(--color-text-tertiary,#9a988f);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:380px;}
+.ao-cb .grow{flex:1;min-width:0;}
+.ao-cb .pill{font-size:11px;font-weight:500;padding:3px 10px;border-radius:999px;white-space:nowrap;}
+.ao-cb .pill.ok{background:var(--color-background-success,#e1f5ee);color:var(--color-text-success,#0f6e56);}
+.ao-cb .pill.todo{background:var(--color-background-warning,#faeeda);color:var(--color-text-warning,#854f0b);}
+.ao-cb .pill.opt{background:var(--color-background-secondary,#f1efe8);color:var(--color-text-tertiary,#9a988f);}
+
+.ao-cb .bd{padding:4px 14px 16px;border-top:0.5px solid var(--color-border-tertiary,#e6e4df);}
+.ao-cb .lbl{display:block;font-size:12px;color:var(--color-text-secondary,#6b7280);margin:12px 0 6px;}
+.ao-cb input,.ao-cb select,.ao-cb textarea{width:100%;background:var(--color-background-primary,#fff);border:0.5px solid var(--color-border-tertiary,#e6e4df);color:inherit;border-radius:8px;padding:8px 10px;font:inherit;font-size:13px;}
+.ao-cb input:focus,.ao-cb select:focus,.ao-cb textarea:focus{outline:none;border-color:var(--color-text-link,#2563eb);}
+.ao-cb textarea{resize:vertical;}
+.ao-cb .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.ao-cb .chip{font-size:13px;padding:6px 12px;border-radius:8px;border:0.5px solid var(--color-border-tertiary,#e6e4df);background:var(--color-background-primary,#fff);color:var(--color-text-secondary,#6b7280);cursor:pointer;}
+.ao-cb .chip:hover{border-color:var(--color-border-secondary,#cfcdc4);}
+.ao-cb .chip.on{border:2px solid var(--color-text-link,#2563eb);padding:5px 11px;background:color-mix(in srgb,var(--color-text-link,#2563eb) 12%,transparent);color:var(--color-text-link,#2563eb);font-weight:500;}
+.ao-cb .chip.add{border-style:dashed;}
+.ao-cb .tag{font-size:13px;padding:5px 10px;border-radius:8px;background:color-mix(in srgb,var(--color-text-link,#2563eb) 12%,transparent);color:var(--color-text-link,#2563eb);display:inline-flex;gap:6px;align-items:center;}
+.ao-cb .tag .x{cursor:pointer;font-weight:700;opacity:.7;}
+.ao-cb .tag .x:hover{opacity:1;}
+.ao-cb .addrow{display:flex;gap:8px;margin-top:8px;}
+.ao-cb .addrow input{flex:1;}
+.ao-cb .btn{font-size:12px;padding:6px 12px;border-radius:8px;border:0.5px solid var(--color-border-secondary,#cfcdc4);background:var(--color-background-primary,#fff);color:inherit;cursor:pointer;white-space:nowrap;}
+.ao-cb .btn:hover{background:var(--color-background-secondary,#f5f4f0);}
+.ao-cb .btn:disabled{opacity:.5;cursor:not-allowed;}
+.ao-cb .mini{font-size:11px;color:var(--color-text-tertiary,#9a988f);}
+
+.ao-cb .step{display:flex;align-items:center;gap:8px;border:0.5px solid var(--color-border-tertiary,#e6e4df);border-radius:8px;padding:8px 10px;margin-bottom:6px;background:var(--color-background-primary,#fff);}
+.ao-cb .step.brk{border-color:color-mix(in srgb,var(--color-text-link,#2563eb) 35%,var(--color-border-tertiary,#e6e4df));}
+.ao-cb .step .ix{width:46px;font-size:11px;color:var(--color-text-tertiary,#9a988f);}
+.ao-cb .step select{width:auto;flex:1;}
+.ao-cb .step .dl{width:74px;}
+
+/* v2.1 — persona hérité (prose) affiché sans le fragmenter en chips */
+.ao-cb .prose{font-size:12px;color:var(--color-text-secondary,#6b7280);background:var(--color-background-secondary,#f5f4f0);border:0.5px solid var(--color-border-tertiary,#e6e4df);border-radius:8px;padding:8px 10px;margin-bottom:8px;}
+/* v2.1 — bannière squelette repris d'un modèle de séquence */
+.ao-cb .tplnote{font-size:12.5px;background:color-mix(in srgb,var(--color-text-link,#2563eb) 8%,transparent);border:0.5px solid color-mix(in srgb,var(--color-text-link,#2563eb) 30%,transparent);border-radius:8px;padding:10px 12px;margin-top:10px;}
+/* v2.1 — ligne checkbox (toggle A/B) */
+.ao-cb .chkrow{display:flex;gap:8px;align-items:center;cursor:pointer;}
+.ao-cb .chkrow input{width:auto;margin:0;}
+/* v2.1 — inputs taille d'entreprise */
+.ao-cb .cs{width:90px;}
+
+.ao-cb .create{margin-top:6px;background:var(--color-text-primary,#1a1a1a);color:var(--color-background-primary,#fff);border:0;border-radius:8px;padding:11px 20px;font-size:14px;font-weight:500;cursor:pointer;width:100%;}
+.ao-cb .create:hover{filter:brightness(1.08);}
+.ao-cb .create:disabled{opacity:.45;cursor:not-allowed;}
+
+@media (prefers-color-scheme:dark){
+  .ao-cb{--color-text-primary:#ececec;--color-text-secondary:#a0a0a0;--color-text-tertiary:#7c7c7c;--color-background-primary:#1a1a1a;--color-background-secondary:#242424;--color-border-tertiary:#3a3a3a;--color-border-secondary:#4a4a4a;--color-text-link:#7aa2ff;--color-background-success:#0f3b30;--color-text-success:#5dcaa5;--color-background-warning:#3a2c10;--color-text-warning:#ef9f27;}
+}
